@@ -1,9 +1,20 @@
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="manifest.json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- Android Native Capabilities -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#020617">
+    
+    <!-- iOS Native Capabilities -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FinVue">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/10707/10707438.png">
+    
     <title>FinVue</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -27,22 +38,33 @@
       }
     </script>
     <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Prevent the body itself from scrolling to stop 'bounce' */
+        }
+
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
             -webkit-tap-highlight-color: transparent;
-            overscroll-behavior-y: none;
             transition: background-color 0.3s ease, color 0.3s ease;
+            user-select: none;
+            /* touch-action: auto ensures scrolling works naturally */
+            touch-action: auto; 
         }
+        
         .glass {
             background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(16px);
+            backdrop-filter: blur(24px);
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
         .dark .glass {
             background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(16px);
+            backdrop-filter: blur(24px);
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
+        
         .glossy-blue { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }
         .glossy-green { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
         .glossy-red { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
@@ -54,22 +76,27 @@
             100% { transform: translateY(0px); }
         }
         .animate-float {
-            animation: float 3s ease-in-out infinite;
+            animation: float 4s ease-in-out infinite;
         }
 
-        /* Smooth scrollbar */
-        ::-webkit-scrollbar {
-          width: 8px;
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
         }
-        ::-webkit-scrollbar-track {
-          background: transparent;
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
         }
-        ::-webkit-scrollbar-thumb {
-          background: rgba(0,0,0,0.1);
-          border-radius: 10px;
+
+        #root {
+          height: 100%;
+          width: 100%;
+          display: flex;
+          flex-direction: column;
         }
-        .dark ::webkit-scrollbar-thumb {
-          background: rgba(255,255,255,0.1);
+
+        /* Enable inertial scrolling for containers */
+        .scroll-container {
+            -webkit-overflow-scrolling: touch;
         }
     </style>
 <script type="importmap">
@@ -85,5 +112,24 @@
 </head>
 <body class="bg-slate-50 text-slate-900 dark:bg-[#020617] dark:text-slate-50">
     <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js')
+            .then(reg => {
+              console.log('SW registered: Native readiness active');
+              reg.onupdatefound = () => {
+                const installingWorker = reg.installing;
+                installingWorker.onstatechange = () => {
+                  if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    console.log('New version available, refresh recommended');
+                  }
+                };
+              };
+            })
+            .catch(err => console.log('SW registration failed', err));
+        });
+      }
+    </script>
 </body>
 </html>

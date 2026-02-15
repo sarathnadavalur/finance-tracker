@@ -1,0 +1,46 @@
+
+{
+  "name": "FinVue Finance Tracker",
+  "short_name": "FinVue",
+  "id": "com.finvue.app",
+  "description": "A sleek, minimalistic native-feel finance tracker. Manage your savings, investments, debts, and EMIs with real-time currency conversions and a glossy modern user interface optimized for Android devices.",
+  "lang": "en-US",
+  "dir": "ltr",
+  "categories": ["finance", "productivity"],
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/10707/10707438.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/10707/10707438.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/10707/10707438.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "FinVue Desktop Dashboard"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/10707/10707438.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "FinVue Mobile Dashboard"
+    }
+  ]
+}
