@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'finvue-native-v3';
+const CACHE_NAME = 'vantage-native-v1';
 const STATIC_ASSETS = [
   './',
   './index.html',

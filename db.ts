@@ -1,12 +1,13 @@
 
-import { Portfolio, UserProfile, AppSettings } from './types';
+import { Portfolio, UserProfile, AppSettings, Transaction } from './types';
 
-const DB_NAME = 'FinVueDB';
-const DB_VERSION = 1;
+const DB_NAME = 'VantageDB';
+const DB_VERSION = 2; // Incremented version
 const STORES = {
   PORTFOLIOS: 'portfolios',
   PROFILE: 'profile',
-  SETTINGS: 'settings'
+  SETTINGS: 'settings',
+  TRANSACTIONS: 'transactions'
 };
 
 export class InternalDB {
@@ -33,6 +34,10 @@ export class InternalDB {
         if (!db.objectStoreNames.contains(STORES.SETTINGS)) {
           db.createObjectStore(STORES.SETTINGS);
         }
+        if (!db.objectStoreNames.contains(STORES.TRANSACTIONS)) {
+          const txStore = db.createObjectStore(STORES.TRANSACTIONS, { keyPath: 'id' });
+          txStore.createIndex('portfolioId', 'portfolioId', { unique: false });
+        }
       };
     });
   }
@@ -46,7 +51,31 @@ export class InternalDB {
   }
 
   async deletePortfolio(id: string): Promise<void> {
+    // Also delete associated transactions
+    const txs = await this.getTransactionsByPortfolio(id);
+    for (const t of txs) {
+      await this.delete(STORES.TRANSACTIONS, t.id);
+    }
     return this.delete(STORES.PORTFOLIOS, id);
+  }
+
+  async getTransactionsByPortfolio(portfolioId: string): Promise<Transaction[]> {
+    if (!this.db) return [];
+    return new Promise((resolve) => {
+      const tx = this.db!.transaction(STORES.TRANSACTIONS, 'readonly');
+      const store = tx.objectStore(STORES.TRANSACTIONS);
+      const index = store.index('portfolioId');
+      const request = index.getAll(portfolioId);
+      request.onsuccess = () => resolve(request.result || []);
+    });
+  }
+
+  async saveTransaction(t: Transaction): Promise<void> {
+    return this.put(STORES.TRANSACTIONS, t);
+  }
+
+  async deleteTransaction(id: string): Promise<void> {
+    return this.delete(STORES.TRANSACTIONS, id);
   }
 
   async getProfile(): Promise<UserProfile | null> {
@@ -66,7 +95,7 @@ export class InternalDB {
   }
 
   async clearAll(): Promise<void> {
-    const stores = [STORES.PORTFOLIOS, STORES.PROFILE, STORES.SETTINGS];
+    const stores = [STORES.PORTFOLIOS, STORES.PROFILE, STORES.SETTINGS, STORES.TRANSACTIONS];
     const tx = this.db!.transaction(stores, 'readwrite');
     stores.forEach(s => tx.objectStore(s).clear());
     return new Promise((resolve) => {
@@ -74,9 +103,9 @@ export class InternalDB {
     });
   }
 
-  // Generic helpers
   private async getAll<T>(storeName: string): Promise<T[]> {
-    const tx = this.db!.transaction(storeName, 'readonly');
+    if (!this.db) return [];
+    const tx = this.db.transaction(storeName, 'readonly');
     const store = tx.objectStore(storeName);
     const request = store.getAll();
     return new Promise((resolve) => {
@@ -85,7 +114,8 @@ export class InternalDB {
   }
 
   private async get<T>(storeName: string, key: string): Promise<T | null> {
-    const tx = this.db!.transaction(storeName, 'readonly');
+    if (!this.db) return null;
+    const tx = this.db.transaction(storeName, 'readonly');
     const store = tx.objectStore(storeName);
     const request = store.get(key);
     return new Promise((resolve) => {
@@ -94,7 +124,8 @@ export class InternalDB {
   }
 
   private async put(storeName: string, value: any, key?: string): Promise<void> {
-    const tx = this.db!.transaction(storeName, 'readwrite');
+    if (!this.db) return;
+    const tx = this.db.transaction(storeName, 'readwrite');
     const store = tx.objectStore(storeName);
     store.put(value, key);
     return new Promise((resolve) => {
@@ -103,7 +134,8 @@ export class InternalDB {
   }
 
   private async delete(storeName: string, key: string): Promise<void> {
-    const tx = this.db!.transaction(storeName, 'readwrite');
+    if (!this.db) return;
+    const tx = this.db.transaction(storeName, 'readwrite');
     const store = tx.objectStore(storeName);
     store.delete(key);
     return new Promise((resolve) => {

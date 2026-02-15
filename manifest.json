@@ -1,8 +1,8 @@
 
 {
-  "name": "FinVue Finance Tracker",
-  "short_name": "FinVue",
-  "id": "com.finvue.app",
+  "name": "Vantage Finance Tracker",
+  "short_name": "Vantage",
+  "id": "com.vantage.app",
   "description": "A sleek, minimalistic native-feel finance tracker. Manage your savings, investments, debts, and EMIs with real-time currency conversions and a glossy modern user interface optimized for Android devices.",
   "lang": "en-US",
   "dir": "ltr",
@@ -15,32 +15,17 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/10707/10707438.png",
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.21 15.89A10 10 0 1 1 8 2.83'/%3E%3Cpath d='M22 12A10 10 0 0 0 12 2v10z' fill='%233b82f6'/%3E%3Ctext x='15.5' y='8.5' font-size='6' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='900'%3E$%3C/text%3E%3C/svg%3E",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "maskable"
     },
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/10707/10707438.png",
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.21 15.89A10 10 0 1 1 8 2.83'/%3E%3Cpath d='M22 12A10 10 0 0 0 12 2v10z' fill='%233b82f6'/%3E%3Ctext x='15.5' y='8.5' font-size='6' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='900'%3E$%3C/text%3E%3C/svg%3E",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any"
     }
   ],
-  "screenshots": [
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/10707/10707438.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "FinVue Desktop Dashboard"
-    },
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/10707/10707438.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "FinVue Mobile Dashboard"
-    }
-  ]
+  "screenshots": []
 }

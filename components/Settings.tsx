@@ -1,62 +1,79 @@
 
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useApp } from '../App';
 import { db } from '../db';
-import { User, Moon, Sun, Type, Trash2, Shield, Download, Upload, Database } from 'lucide-react';
+import { 
+  User, Moon, Sun, Type, Trash2, Shield, Download, Upload, 
+  Database, Fingerprint, CheckCircle2, Cloud, CloudSync, 
+  RefreshCcw, AlertTriangle, ShieldCheck 
+} from 'lucide-react';
 
 const Settings: React.FC = () => {
-  const { profile, setProfile, settings, setSettings, portfolios, setPortfolios } = useApp();
+  const { profile, setProfile, settings, setSettings, portfolios, syncStatus, triggerSync } = useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [bioAvailable, setBioAvailable] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
 
-  const exportData = () => {
-    const exportPayload = {
-      version: "1.1",
-      timestamp: new Date().toISOString(),
-      profile,
-      portfolios,
-      settings
+  useEffect(() => {
+    const checkBio = async () => {
+      const available = !!window.PublicKeyCredential && 
+        await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+      setBioAvailable(available);
     };
+    checkBio();
+  }, []);
 
-    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `finvue_native_backup_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const handleCloudToggle = async () => {
+    if (!profile.syncEnabled) {
+      // Feature D: Initial OAuth Request (Mocked)
+      // In a real build, this would trigger gapi.auth2.getAuthInstance().signIn()
+      const confirm = window.confirm("Connect to Google Drive for secure encrypted backups?");
+      if (confirm) {
+        setProfile({ ...profile, syncEnabled: true });
+        triggerSync();
+      }
+    } else {
+      setProfile({ ...profile, syncEnabled: false });
+    }
   };
 
-  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const manualBackup = async () => {
+    setSyncLoading(true);
+    await triggerSync();
+    setSyncLoading(false);
+    if (navigator.vibrate) navigator.vibrate([10, 30, 10]);
+  };
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const content = e.target?.result as string;
-        const data = JSON.parse(content);
+  const setupBiometrics = async () => {
+    try {
+      setIsRegistering(true);
+      const challenge = new Uint8Array(32);
+      window.crypto.getRandomValues(challenge);
+      const userID = new Uint8Array(16);
+      window.crypto.getRandomValues(userID);
 
-        if (data && data.portfolios && data.profile) {
-          if (confirm('Importing this file will overwrite your Internal Database. Continue?')) {
-            // Bulk update DB
-            await db.clearAll();
-            for (const p of data.portfolios) {
-              await db.savePortfolio(p);
-            }
-            await db.saveProfile(data.profile);
-            if (data.settings) await db.saveSettings(data.settings);
-            
-            // Reload app to re-hydrate from DB
-            window.location.reload();
-          }
-        }
-      } catch (err) {
-        alert('Invalid native backup file.');
+      const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
+        challenge,
+        rp: { name: "Vantage App", id: window.location.hostname },
+        user: { id: userID, name: profile.email, displayName: profile.name },
+        pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
+        authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+        timeout: 60000,
+        attestation: "none",
+      };
+
+      const credential = await navigator.credentials.create({ publicKey: publicKeyCredentialCreationOptions }) as PublicKeyCredential;
+      if (credential) {
+        const credentialId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
+        setProfile({ ...profile, biometricId: credentialId });
+        if (navigator.vibrate) navigator.vibrate([10, 30, 10]);
       }
-    };
-    reader.readAsText(file);
+    } catch (err) {
+      console.error("Biometric registration failed", err);
+    } finally {
+      setIsRegistering(false);
+    }
   };
 
   const resetApp = async () => {
@@ -75,33 +92,139 @@ const Settings: React.FC = () => {
         <p className="text-slate-500 dark:text-slate-400 font-medium">Native standalone preferences</p>
       </div>
 
-      {/* Profile Section */}
+      {/* Feature D: Cloud Sync Section */}
       <section className="bg-white dark:bg-slate-900/50 backdrop-blur-sm rounded-[2.5rem] p-8 border border-slate-200 dark:border-white/5 shadow-sm">
-        <div className="flex items-center gap-4 mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-600/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
-            <User size={24} />
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-600/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
+              <Cloud size={24} />
+            </div>
+            <h2 className="text-xl font-black text-slate-900 dark:text-white">Cloud Connectivity</h2>
           </div>
-          <h2 className="text-xl font-black text-slate-900 dark:text-white">Profile</h2>
+          <button 
+            onClick={handleCloudToggle}
+            className={`w-14 h-8 rounded-full transition-colors relative ${profile.syncEnabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}
+          >
+            <div className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all ${profile.syncEnabled ? 'right-1' : 'left-1'}`}></div>
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Display Name</label>
-            <input 
-              type="text"
-              className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-              value={profile.name}
-              onChange={(e) => setProfile({...profile, name: e.target.value})}
-            />
+        {profile.syncEnabled ? (
+          <div className="space-y-6 animate-in fade-in slide-in-from-top-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-6 bg-slate-50 dark:bg-slate-800 rounded-3xl border border-transparent hover:border-blue-500/30 transition-all">
+                <div className="flex items-center gap-3 mb-3">
+                  <CloudSync size={20} className="text-blue-500" />
+                  <span className="font-bold text-slate-900 dark:text-white">Auto-Sync</span>
+                </div>
+                <p className="text-xs text-slate-500 mb-4 leading-relaxed">Background backup every 5 minutes and on change.</p>
+                <button 
+                  onClick={() => setSettings({...settings, autoSync: !settings.autoSync})}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${settings.autoSync ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}
+                >
+                  {settings.autoSync ? 'Always Active' : 'Paused'}
+                </button>
+              </div>
+
+              <div className="p-6 bg-slate-50 dark:bg-slate-800 rounded-3xl border border-transparent hover:border-blue-500/30 transition-all">
+                <div className="flex items-center gap-3 mb-3">
+                  <RefreshCcw size={20} className="text-blue-500" />
+                  <span className="font-bold text-slate-900 dark:text-white">Manual Pull</span>
+                </div>
+                <p className="text-xs text-slate-500 mb-4 leading-relaxed">Force merge remote Drive data into local database.</p>
+                <button 
+                  onClick={manualBackup}
+                  disabled={syncLoading}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {syncLoading ? <RefreshCcw size={12} className="animate-spin" /> : <CloudSync size={12} />}
+                  <span>Sync Now</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
+              <div className="flex items-center gap-3">
+                <ShieldCheck size={18} className="text-emerald-500" />
+                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Conflict Handling: Last Write Wins</span>
+              </div>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                Last: {profile.lastCloudSync ? new Date(profile.lastCloudSync).toLocaleTimeString() : 'Never'}
+              </span>
+            </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Email Address</label>
-            <input 
-              type="email"
-              className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-              value={profile.email}
-              onChange={(e) => setProfile({...profile, email: e.target.value})}
-            />
+        ) : (
+          <div className="flex flex-col items-center justify-center py-10 text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+              <Cloud size={32} />
+            </div>
+            <div>
+              <p className="font-bold text-slate-900 dark:text-white">Cloud Backups Disabled</p>
+              <p className="text-xs text-slate-500 max-w-xs mt-1">Connect your Google account to sync data across all your devices securely.</p>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Security Section */}
+      <section className="bg-white dark:bg-slate-900/50 backdrop-blur-sm rounded-[2.5rem] p-8 border border-slate-200 dark:border-white/5 shadow-sm">
+        <div className="flex items-center gap-4 mb-8">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-600/10 flex items-center justify-center text-amber-600 dark:text-amber-400">
+            <Shield size={24} />
+          </div>
+          <h2 className="text-xl font-black text-slate-900 dark:text-white">Privacy & Security</h2>
+        </div>
+
+        <div className="space-y-4">
+          <div className={`flex items-center justify-between p-6 rounded-3xl transition-all ${bioAvailable ? 'bg-slate-50 dark:bg-slate-800' : 'opacity-50 grayscale'}`}>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm">
+                <Fingerprint size={22} className="text-blue-600" />
+              </div>
+              <div>
+                <p className="font-bold text-slate-900 dark:text-white">Biometric Lock</p>
+                <p className="text-xs text-slate-500">Native device authentication</p>
+              </div>
+            </div>
+            {bioAvailable && (
+              <button 
+                onClick={setupBiometrics}
+                disabled={isRegistering}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${profile.biometricId ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 active:scale-95'}`}
+              >
+                {isRegistering ? 'Wait...' : profile.biometricId ? 'Active' : 'Enable'}
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Appearance */}
+      <section className="bg-white dark:bg-slate-900/50 backdrop-blur-sm rounded-[2.5rem] p-8 border border-slate-200 dark:border-white/5 shadow-sm">
+        <div className="flex items-center gap-4 mb-8">
+          <div className="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-600/10 flex items-center justify-center text-purple-600 dark:text-purple-400">
+            <Sun size={24} />
+          </div>
+          <h2 className="text-xl font-black text-slate-900 dark:text-white">Display</h2>
+        </div>
+
+        <div className="space-y-8">
+          <div className="flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-800 rounded-3xl">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm">
+                {settings.darkMode ? <Moon size={22} className="text-yellow-400" /> : <Sun size={22} className="text-orange-500" />}
+              </div>
+              <div>
+                <p className="font-bold text-slate-900 dark:text-white">Dark Mode</p>
+                <p className="text-xs text-slate-500">Optimized for OLED</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setSettings({...settings, darkMode: !settings.darkMode})}
+              className={`w-14 h-8 rounded-full transition-colors relative ${settings.darkMode ? 'bg-blue-600' : 'bg-slate-300'}`}
+            >
+              <div className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all ${settings.darkMode ? 'right-1' : 'left-1'}`}></div>
+            </button>
           </div>
         </div>
       </section>
@@ -112,118 +235,26 @@ const Settings: React.FC = () => {
           <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-600/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
             <Database size={24} />
           </div>
-          <h2 className="text-xl font-black text-slate-900 dark:text-white">Internal Database</h2>
+          <h2 className="text-xl font-black text-slate-900 dark:text-white">Maintenance</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <button 
-            onClick={exportData}
-            className="flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-800 rounded-3xl group transition-all"
-          >
-            <div className="flex items-center gap-4">
+          <button onClick={resetApp} className="flex items-center justify-between p-6 bg-rose-500/5 dark:bg-rose-500/10 border border-rose-500/20 rounded-3xl group transition-all">
+            <div className="flex items-center gap-4 text-left">
               <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm">
-                <Download size={20} className="text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div className="text-left">
-                <p className="font-bold text-slate-900 dark:text-white">Backup DB</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-widest">To JSON</p>
-              </div>
-            </div>
-          </button>
-
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-800 rounded-3xl group transition-all"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm">
-                <Upload size={20} className="text-blue-600 dark:text-blue-400" />
-              </div>
-              <div className="text-left">
-                <p className="font-bold text-slate-900 dark:text-white">Restore DB</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-widest">Overwrite device</p>
-              </div>
-            </div>
-            <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleImport} />
-          </button>
-        </div>
-      </section>
-
-      {/* Preferences Section */}
-      <section className="bg-white dark:bg-slate-900/50 backdrop-blur-sm rounded-[2.5rem] p-8 border border-slate-200 dark:border-white/5 shadow-sm">
-        <div className="flex items-center gap-4 mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-600/10 flex items-center justify-center text-purple-600 dark:text-purple-400">
-            <Shield size={24} />
-          </div>
-          <h2 className="text-xl font-black text-slate-900 dark:text-white">Appearance</h2>
-        </div>
-
-        <div className="space-y-8">
-          <div className="flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-800 rounded-3xl">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm">
-                {settings.darkMode ? <Moon size={22} className="text-yellow-400" /> : <Sun size={22} className="text-orange-500" />}
+                <Trash2 size={20} className="text-rose-600" />
               </div>
               <div>
-                <p className="font-bold text-slate-900 dark:text-white">Native Dark Mode</p>
-                <p className="text-xs text-slate-500">System contrast theme</p>
+                <p className="font-bold text-slate-900 dark:text-white">Wipe Data</p>
+                <p className="text-[10px] text-rose-500 uppercase tracking-widest">Local & Sync</p>
               </div>
             </div>
-            <button 
-              onClick={() => setSettings({...settings, darkMode: !settings.darkMode})}
-              className={`w-14 h-8 rounded-full transition-colors relative ${settings.darkMode ? 'bg-blue-600' : 'bg-slate-300'}`}
-            >
-              <div className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all ${settings.darkMode ? 'right-1' : 'left-1'}`}></div>
-            </button>
-          </div>
-
-          <div className="space-y-4 px-2">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
-                <Type size={22} className="text-slate-600 dark:text-slate-400" />
-              </div>
-              <div>
-                <p className="font-bold text-slate-900 dark:text-white">UI Scale</p>
-                <p className="text-xs text-slate-500">Adjust readability</p>
-              </div>
-            </div>
-            <div className="pt-2">
-              <input 
-                type="range"
-                min="12"
-                max="24"
-                className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                value={settings.fontSize}
-                onChange={(e) => setSettings({...settings, fontSize: parseInt(e.target.value)})}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Danger Zone */}
-      <section className="bg-rose-50 dark:bg-rose-950/20 rounded-[2.5rem] p-8 border border-rose-100 dark:border-rose-900/30">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center text-rose-600">
-              <Trash2 size={24} />
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-rose-800 dark:text-rose-400">Wipe Engine</h2>
-              <p className="text-sm text-rose-600 dark:text-rose-400/60 font-medium">Clear native database storage</p>
-            </div>
-          </div>
-          <button 
-            onClick={resetApp}
-            className="px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-2xl transition-all shadow-lg"
-          >
-            Clear All
           </button>
         </div>
       </section>
 
       <div className="text-center pt-10 pb-20">
-        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-600 uppercase tracking-[0.2em]">FinVue Standalone v1.1.2</p>
+        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-600 uppercase tracking-[0.2em]">Vantage Standalone v2.0.0 (Cloud Sync)</p>
       </div>
     </div>
   );

@@ -88,6 +88,7 @@ const PortfolioForm: React.FC<PortfolioFormProps> = ({ onClose, editingPortfolio
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Fix: Added missing required property 'updatedAt' to satisfy the Portfolio interface.
     const portfolioData: Portfolio = {
       id: editingPortfolio ? editingPortfolio.id : Date.now().toString(),
       name: formData.name,
@@ -97,7 +98,8 @@ const PortfolioForm: React.FC<PortfolioFormProps> = ({ onClose, editingPortfolio
       totalEmiValue: isEMI ? parseFloat(formData.totalEmiValue) : undefined,
       emiStartDate: isEMI ? formData.emiStartDate : undefined,
       monthlyEmiAmount: isEMI ? parseFloat(formData.monthlyEmiAmount) : undefined,
-      paymentDate: isEMI ? formData.paymentDate : undefined
+      paymentDate: isEMI ? formData.paymentDate : undefined,
+      updatedAt: editingPortfolio?.updatedAt || Date.now()
     };
 
     if (editingPortfolio) {

@@ -12,28 +12,66 @@ export enum Currency {
   USD = 'USD'
 }
 
+export enum TransactionCategory {
+  INCOME = 'Income',
+  SHOPPING = 'Shopping',
+  FOOD = 'Food',
+  RENT = 'Rent',
+  UTILITIES = 'Utilities',
+  ENTERTAINMENT = 'Entertainment',
+  INVESTMENT = 'Investment',
+  TRANSFER = 'Transfer',
+  OTHER = 'Other'
+}
+
+export type AuthMethod = 'local' | 'google' | null;
+
+export interface Transaction {
+  id: string;
+  portfolioId: string;
+  amount: number;
+  category: TransactionCategory;
+  note: string;
+  date: number; // timestamp
+  type: 'income' | 'expense';
+  updatedAt: number;
+}
+
 export interface Portfolio {
   id: string;
   name: string;
   type: PortfolioType;
   currency: Currency;
   value: number;
-  // EMI specific fields
   totalEmiValue?: number;
   emiStartDate?: string;
   monthlyEmiAmount?: number;
   paymentDate?: string;
+  updatedAt: number;
 }
 
 export interface UserProfile {
   name: string;
+  firstName: string;
+  lastName: string;
   email: string;
+  gender?: string;
+  age?: string;
+  dob?: string;
   avatar?: string;
+  authMethod: AuthMethod;
+  pin?: string;
+  biometricId?: string;
+  lastActive?: number;
+  syncEnabled?: boolean;
+  lastCloudSync?: number;
 }
 
 export interface AppSettings {
   darkMode: boolean;
-  fontSize: number; // base size in pixels
+  fontSize: number;
+  privacyMode: boolean;
+  autoSync: boolean;
 }
 
 export interface ExchangeRates {
