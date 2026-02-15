@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Plus, Wallet } from 'lucide-react';
 import { useApp } from '../App';
@@ -29,18 +28,18 @@ const Portfolios: React.FC = () => {
   };
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-6 md:space-y-10">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Portfolios</h1>
-          <p className="text-slate-500 dark:text-slate-400">Manage your financial assets and liabilities</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Asset and liability management</p>
         </div>
         
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="hidden md:flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-all hover:-translate-y-1 active:scale-95"
+          className="hidden md:flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-all hover:-translate-y-0.5 active:scale-95 text-sm"
         >
-          <Plus size={20} />
+          <Plus size={18} />
           <span>Add Portfolio</span>
         </button>
       </div>
@@ -50,15 +49,14 @@ const Portfolios: React.FC = () => {
         if (filtered.length === 0) return null;
 
         return (
-          <section key={type} className="animate-in fade-in slide-in-from-left-4 duration-500">
-            <div className="flex items-center gap-4 mb-6">
-              <h2 className="text-lg font-black tracking-tight text-slate-800 dark:text-slate-200 uppercase">{type}</h2>
+          <section key={type} className="animate-in fade-in slide-in-from-left-2 duration-500">
+            <div className="flex items-center gap-3 mb-4">
+              <h2 className="text-sm font-black tracking-tight text-slate-800 dark:text-slate-200 uppercase tracking-widest">{type}</h2>
               <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800 opacity-50"></div>
-              <span className="text-xs font-bold text-slate-400 px-2.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-full">{filtered.length}</span>
+              <span className="text-[10px] font-bold text-slate-400 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">{filtered.length}</span>
             </div>
             
-            {/* Optimized grid for smaller cards: 2 on mobile, 3 on tablet, 4 on desktop */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
               {filtered.map(portfolio => (
                 <PortfolioCard 
                   key={portfolio.id} 
@@ -72,27 +70,27 @@ const Portfolios: React.FC = () => {
       })}
 
       {portfolios.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 mb-6">
-            <Wallet size={48} />
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 mb-4">
+            <Wallet size={36} />
           </div>
-          <h3 className="text-xl font-bold mb-2">No portfolios yet</h3>
-          <p className="text-slate-500 max-w-xs mb-8">Start adding your savings, investments or debts to track your net worth.</p>
+          <h3 className="text-lg font-bold mb-1">No portfolios yet</h3>
+          <p className="text-xs text-slate-500 max-w-[200px] mb-6">Track your savings, investments or debts by adding one.</p>
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-2xl font-bold shadow-lg"
+            className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg text-sm"
           >
-            <Plus size={20} />
-            <span>Create First Portfolio</span>
+            <Plus size={18} />
+            <span>Create First</span>
           </button>
         </div>
       )}
 
       <button 
         onClick={() => setIsModalOpen(true)}
-        className="md:hidden fixed bottom-24 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform z-50 border-4 border-white dark:border-slate-900"
+        className="md:hidden fixed bottom-20 right-4 w-12 h-12 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform z-50 border-4 border-white dark:border-slate-900"
       >
-        <Plus size={28} />
+        <Plus size={24} />
       </button>
 
       {isModalOpen && (

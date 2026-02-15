@@ -49,22 +49,18 @@ const App: React.FC = () => {
   const [rates, setRates] = useState<ExchangeRates>(INITIAL_RATES);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
-  // App Initialization Sequence (Native Android Pattern)
   useEffect(() => {
     const initApp = async () => {
       try {
         await db.init();
-        
         const [savedPortfolios, savedProfile, savedSettings] = await Promise.all([
           db.getAllPortfolios(),
           db.getProfile(),
           db.getSettings()
         ]);
-
         if (savedPortfolios) setPortfolios(savedPortfolios);
         if (savedProfile) setProfile(savedProfile);
         if (savedSettings) setSettings(savedSettings);
-
         setIsReady(true);
       } catch (err) {
         console.error("Critical: Failed to initialize native database", err);
@@ -73,7 +69,6 @@ const App: React.FC = () => {
     initApp();
   }, []);
 
-  // Sync state to DB on change (Repository pattern)
   useEffect(() => {
     if (isReady) db.saveProfile(profile);
   }, [profile, isReady]);
@@ -90,7 +85,6 @@ const App: React.FC = () => {
     }
   }, [settings, isReady]);
 
-  // Performance optimized FX fetching
   const fetchRealRates = async () => {
     try {
       const response = await fetch('https://open.er-api.com/v6/latest/USD');
@@ -117,7 +111,6 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Native Jitter for real-time feel
   useEffect(() => {
     const jitterInterval = setInterval(() => {
       setRates(prev => {
@@ -180,47 +173,44 @@ const App: React.FC = () => {
   return (
     <AppContext.Provider value={contextValue}>
       <div 
-        className="h-full flex flex-col md:flex-row max-w-7xl mx-auto bg-slate-50 dark:bg-[#020617] transition-colors duration-300 antialiased overflow-hidden"
+        className="h-full flex flex-col md:flex-row max-w-7xl mx-auto bg-slate-50 dark:bg-[#020617] transition-colors duration-300 antialiased overflow-hidden w-full"
         style={{ fontSize: `${settings.fontSize}px` }}
       >
-        {/* Mobile Header */}
-        <header className="md:hidden pt-[env(safe-area-inset-top,1rem)] px-4 pb-4 flex justify-between items-center border-b border-slate-200 dark:border-white/5 shrink-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md sticky top-0 z-40">
+        <header className="md:hidden pt-[env(safe-area-inset-top,0.5rem)] px-4 pb-2 flex justify-between items-center border-b border-slate-200 dark:border-white/5 shrink-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md sticky top-0 z-40 w-full">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400">
-              <User size={18} />
+            <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400">
+              <User size={16} />
             </div>
-            <span className="font-black text-lg tracking-tight text-slate-900 dark:text-white">{profile.name}</span>
+            <span className="font-black text-base tracking-tight text-slate-900 dark:text-white">{profile.name}</span>
           </div>
           <button 
             onClick={() => setSettings(s => ({ ...s, darkMode: !s.darkMode }))}
-            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
-            {settings.darkMode ? <Sun size={20} className="text-yellow-400" /> : <Moon size={20} className="text-slate-600" />}
+            {settings.darkMode ? <Sun size={18} className="text-yellow-400" /> : <Moon size={18} className="text-slate-600" />}
           </button>
         </header>
 
-        {/* Navigation */}
-        <nav className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border-t border-slate-200 dark:border-white/5 md:relative md:w-64 md:border-t-0 md:border-r md:bg-transparent z-50 pb-[env(safe-area-inset-bottom,0)] shrink-0">
-          <div className="flex md:flex-col justify-around md:justify-start items-center p-2 md:p-6 md:gap-4">
-            <div className="hidden md:flex items-center gap-3 mb-10 w-full px-2">
-              <div className="w-10 h-10 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                <User size={24} />
+        <nav className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border-t border-slate-200 dark:border-white/5 md:relative md:w-56 md:border-t-0 md:border-r md:bg-transparent z-50 pb-[env(safe-area-inset-bottom,0)] shrink-0">
+          <div className="flex md:flex-col justify-around md:justify-start items-center p-1.5 md:p-5 md:gap-2">
+            <div className="hidden md:flex items-center gap-3 mb-8 w-full px-2">
+              <div className="w-9 h-9 rounded-xl bg-blue-600/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                <User size={20} />
               </div>
               <div className="flex flex-col">
-                <span className="font-black text-xl tracking-tight text-slate-900 dark:text-white leading-none mb-1">{profile.name}</span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Standalone Account</span>
+                <span className="font-black text-lg tracking-tight text-slate-900 dark:text-white leading-none mb-1 truncate max-w-[120px]">{profile.name}</span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">FinVue Pro</span>
               </div>
             </div>
 
-            <TabButton active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); if(navigator.vibrate) navigator.vibrate(5); }} icon={<LayoutDashboard size={24} />} label="Dashboard" />
-            <TabButton active={activeTab === 'portfolios'} onClick={() => { setActiveTab('portfolios'); if(navigator.vibrate) navigator.vibrate(5); }} icon={<Wallet size={24} />} label="Portfolios" />
-            <TabButton active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); if(navigator.vibrate) navigator.vibrate(5); }} icon={<SettingsIcon size={24} />} label="Settings" />
+            <TabButton active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); if(navigator.vibrate) navigator.vibrate(5); }} icon={<LayoutDashboard size={22} />} label="Dashboard" />
+            <TabButton active={activeTab === 'portfolios'} onClick={() => { setActiveTab('portfolios'); if(navigator.vibrate) navigator.vibrate(5); }} icon={<Wallet size={22} />} label="Wallet" />
+            <TabButton active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); if(navigator.vibrate) navigator.vibrate(5); }} icon={<SettingsIcon size={22} />} label="Settings" />
           </div>
         </nav>
 
-        {/* Main Content Area - flex-1 allows it to take all remaining height */}
-        <main className="flex-1 overflow-y-auto pb-28 md:pb-8 scroll-smooth scroll-container no-scrollbar">
-          <div className="p-4 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <main className="flex-1 overflow-y-auto pb-24 md:pb-6 scroll-smooth scroll-container no-scrollbar w-full">
+          <div className="w-full p-4 md:p-6 animate-in fade-in slide-in-from-bottom-2 duration-500 flex flex-col items-stretch">
             {activeTab === 'dashboard' && <Dashboard />}
             {activeTab === 'portfolios' && <Portfolios />}
             {activeTab === 'settings' && <Settings />}
@@ -242,14 +232,14 @@ const TabButton: React.FC<TabButtonProps> = ({ active, onClick, icon, label }) =
   <button 
     onClick={onClick}
     className={`
-      flex flex-col md:flex-row items-center gap-1 md:gap-4 p-3 md:px-4 md:py-3 rounded-2xl w-full transition-all duration-300
+      flex flex-col md:flex-row items-center gap-1 md:gap-3 p-2 md:px-3 md:py-2.5 rounded-xl w-full transition-all duration-300
       ${active 
         ? 'text-blue-600 md:bg-blue-50 dark:md:bg-blue-600/10 md:shadow-sm' 
         : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}
     `}
   >
     {icon}
-    <span className="text-[10px] md:text-base font-bold tracking-tight">{label}</span>
+    <span className="text-[9px] md:text-sm font-bold tracking-tight">{label}</span>
   </button>
 );
 
