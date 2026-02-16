@@ -64,7 +64,7 @@ const Dashboard: React.FC = () => {
       investmentsPercentage: ((investments / totalAssets) * 100).toFixed(0) + '%',
       savingsPercentage: ((savings / totalAssets) * 100).toFixed(0) + '%'
     };
-  }, [portfolios, baseCurrency, rates, ticker]); // Include ticker to update totals if needed based on live jitter
+  }, [portfolios, baseCurrency, rates, ticker]);
 
   const formatCurrency = (val: number) => {
     const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: baseCurrency, maximumFractionDigits: 0 }).format(val);
@@ -118,8 +118,8 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Net Worth Card */}
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-[#0f172a] py-8 px-7 md:py-12 md:px-10 text-white shadow-xl border border-white/5 w-full">
+      {/* Net Worth Card - py-8 to py-10 (mobile), py-12 to py-14 (desktop) is roughly +20% breadth */}
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-[#0f172a] py-10 px-7 md:py-14 md:px-10 text-white shadow-xl border border-white/5 w-full">
         <div className="absolute top-0 right-0 w-24 h-24 md:w-48 md:h-48 bg-blue-600/20 rounded-full blur-[40px] md:blur-[80px] -mr-12 -mt-12 animate-float"></div>
         <div className="relative z-10 flex flex-col items-start gap-1">
           <p className="text-slate-400 font-bold tracking-[0.12em] uppercase text-[10px] md:text-xs">Net Worth</p>
@@ -129,7 +129,7 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Asset Table - Now full width for simplicity */}
+      {/* Asset Table */}
       <div className="bg-white dark:bg-slate-900/40 rounded-[2rem] border border-slate-200 dark:border-white/5 p-6 shadow-sm backdrop-blur-sm pb-8">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Assets</h3>

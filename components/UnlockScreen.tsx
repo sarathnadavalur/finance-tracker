@@ -14,7 +14,6 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({ profile, onUnlock }) => {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   useEffect(() => {
-    // Auto-trigger biometrics if available and registered
     if (profile.biometricId) {
       handleBiometricUnlock();
     }
@@ -49,8 +48,7 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({ profile, onUnlock }) => {
         onUnlock();
       }
     } catch (err) {
-      console.error("Biometric authentication failed", err);
-      // Fallback to PIN is always available
+      console.warn("Biometric auto-trigger failed or was cancelled.", err);
     } finally {
       setIsAuthenticating(false);
     }
@@ -81,44 +79,46 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({ profile, onUnlock }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-slate-50/80 dark:bg-[#020617]/90 backdrop-blur-2xl flex flex-col items-center justify-center p-6 animate-in slide-in-from-bottom duration-500 overflow-hidden">
-      <div className="flex flex-col items-center max-w-sm w-full">
-        {/* Vantage Logo Header */}
-        <div className="w-16 h-16 rounded-2xl bg-blue-600 shadow-xl shadow-blue-500/30 flex items-center justify-center text-white mb-6 relative animate-float">
+    <div className="fixed inset-0 z-[500] bg-slate-50 dark:bg-[#020617] flex flex-col items-center justify-center p-4 animate-in fade-in duration-500 overflow-y-auto no-scrollbar">
+      <div className="flex flex-col items-center w-full max-w-sm py-8 transition-all duration-500">
+        
+        {/* Compact Logo Header */}
+        <div className="w-16 h-16 rounded-[1.2rem] bg-blue-600 shadow-2xl shadow-blue-500/30 flex items-center justify-center text-white mb-4 relative animate-float">
           <ChartPie size={28} />
-          <div className="absolute -top-1 -right-1 bg-blue-600 border-2 border-white dark:border-slate-900 rounded-full w-6 h-6 flex items-center justify-center">
+          <div className="absolute -top-1 -right-1 bg-blue-600 border-[2px] border-white dark:border-slate-900 rounded-full w-6 h-6 flex items-center justify-center shadow-lg">
              <DollarSign size={10} strokeWidth={4} />
           </div>
         </div>
 
-        <h2 className="text-xl font-black text-slate-900 dark:text-white mb-1">Vantage Secure</h2>
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-10">Welcome back, {profile.name.split(' ')[0]}</p>
+        <h2 className="text-xl font-black text-slate-900 dark:text-white mb-0.5">Vantage Secure</h2>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-6">Welcome back, {profile.name.split(' ')[0]}</p>
 
         <div className="flex flex-col items-center w-full">
-          {/* Biometric Prompt */}
           {profile.biometricId && (
             <button 
               onClick={handleBiometricUnlock}
               disabled={isAuthenticating}
-              className="mb-12 flex flex-col items-center group transition-all"
+              className="mb-6 flex flex-col items-center group transition-all"
             >
-              <div className="relative mb-3">
-                <div className={`absolute inset-0 bg-blue-500/20 rounded-full scale-[1.5] animate-ping ${isAuthenticating ? 'opacity-100' : 'opacity-0'}`}></div>
-                <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-xl shadow-blue-500/40 active:scale-90 transition-all z-10 relative">
-                  <Fingerprint size={32} />
+              <div className="relative mb-2">
+                <div className={`absolute inset-0 bg-blue-500/20 rounded-full scale-[1.3] animate-pulse ${isAuthenticating ? 'opacity-100' : 'opacity-0'}`}></div>
+                <div className="w-12 h-12 rounded-full bg-blue-600/10 dark:bg-blue-600/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-inner active:scale-90 transition-all z-10 relative">
+                  <Fingerprint size={24} />
                 </div>
               </div>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Tap for Biometrics</span>
+              <span className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-500">
+                {isAuthenticating ? 'Verifying...' : 'Automatic Biometrics'}
+              </span>
             </button>
           )}
 
           {/* PIN Indicators */}
-          <div className={`flex gap-5 mb-12 transition-transform ${isError ? 'animate-bounce text-rose-500' : ''}`}>
+          <div className={`flex gap-5 mb-8 transition-transform ${isError ? 'animate-bounce text-rose-500' : ''}`}>
             {[0, 1, 2, 3].map(i => (
               <div 
                 key={i} 
-                className={`w-3 h-3 rounded-full border-2 transition-all duration-300 
-                  ${pin.length > i ? 'bg-blue-600 border-blue-600 scale-125 shadow-lg shadow-blue-600/30' : 'border-slate-300 dark:border-slate-700'}
+                className={`w-3.5 h-3.5 rounded-full border-2 transition-all duration-300 
+                  ${pin.length > i ? 'bg-blue-600 border-blue-600 scale-125 shadow-lg shadow-blue-600/40' : 'border-slate-300 dark:border-slate-700'}
                   ${isError ? 'border-rose-500 bg-rose-500' : ''}
                 `}
               ></div>
@@ -126,44 +126,44 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({ profile, onUnlock }) => {
           </div>
 
           {isError && (
-            <div className="flex items-center gap-1 text-rose-500 mb-8 animate-in fade-in duration-300">
-              <AlertCircle size={14} />
-              <span className="text-[10px] font-black uppercase tracking-widest">Incorrect PIN</span>
+            <div className="flex items-center gap-1.5 text-rose-500 mb-6 animate-in fade-in zoom-in duration-300 bg-rose-500/10 px-4 py-1.5 rounded-full">
+              <AlertCircle size={12} />
+              <span className="text-[9px] font-black uppercase tracking-widest">Access Denied</span>
             </div>
           )}
 
-          {/* Numeric Keypad */}
-          <div className="grid grid-cols-3 gap-6">
+          {/* Responsive Pin Pad Layout */}
+          <div className="grid grid-cols-3 gap-x-6 gap-y-4 md:gap-x-8 md:gap-y-6">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
               <button 
                 key={num} 
                 onClick={() => handlePinInput(num.toString())}
-                className="w-14 h-14 rounded-full bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-white/5 text-xl font-black text-slate-900 dark:text-white flex items-center justify-center active:bg-blue-50 dark:active:bg-blue-600/20 active:scale-90 transition-all shadow-sm"
+                className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-white dark:bg-slate-900/50 border border-slate-200/50 dark:border-white/10 text-xl md:text-2xl font-black text-slate-900 dark:text-white flex items-center justify-center active:bg-blue-600 active:text-white active:scale-90 transition-all shadow-sm"
               >
                 {num}
               </button>
             ))}
-            <div className="w-14 h-14 flex items-center justify-center">
-              {profile.biometricId && <ShieldCheck size={20} className="text-blue-500/40" />}
+            <div className="w-14 h-14 md:w-16 md:h-16 flex items-center justify-center">
+              {profile.biometricId && <ShieldCheck size={24} className="text-emerald-500/30" />}
             </div>
             <button 
               onClick={() => handlePinInput('0')}
-              className="w-14 h-14 rounded-full bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-white/5 text-xl font-black text-slate-900 dark:text-white flex items-center justify-center active:bg-blue-50 dark:active:bg-blue-600/20 active:scale-90 transition-all shadow-sm"
+              className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-white dark:bg-slate-900/50 border border-slate-200/50 dark:border-white/10 text-xl md:text-2xl font-black text-slate-900 dark:text-white flex items-center justify-center active:bg-blue-600 active:text-white active:scale-90 transition-all shadow-sm"
             >
               0
             </button>
             <button 
               onClick={clearLast}
-              className="w-14 h-14 rounded-full flex items-center justify-center text-slate-400 hover:text-rose-500 active:scale-90 transition-all"
+              className="w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center text-slate-400 hover:text-rose-500 active:scale-90 transition-all"
             >
-              <Delete size={20} />
+              <Delete size={24} />
             </button>
           </div>
         </div>
       </div>
 
-      <div className="mt-16 text-center opacity-30">
-        <p className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-500">Vantage Core Security v2.1</p>
+      <div className="mt-4 text-center opacity-30 pb-4">
+        <p className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-500">Vantage Encryption v2.6</p>
       </div>
     </div>
   );

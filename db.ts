@@ -2,7 +2,7 @@
 import { Portfolio, UserProfile, AppSettings, Transaction } from './types';
 
 const DB_NAME = 'VantageDB';
-const DB_VERSION = 2; // Incremented version
+const DB_VERSION = 2;
 const STORES = {
   PORTFOLIOS: 'portfolios',
   PROFILE: 'profile',
@@ -51,12 +51,15 @@ export class InternalDB {
   }
 
   async deletePortfolio(id: string): Promise<void> {
-    // Also delete associated transactions
     const txs = await this.getTransactionsByPortfolio(id);
     for (const t of txs) {
       await this.delete(STORES.TRANSACTIONS, t.id);
     }
     return this.delete(STORES.PORTFOLIOS, id);
+  }
+
+  async getAllTransactions(): Promise<Transaction[]> {
+    return this.getAll<Transaction>(STORES.TRANSACTIONS);
   }
 
   async getTransactionsByPortfolio(portfolioId: string): Promise<Transaction[]> {
@@ -95,8 +98,9 @@ export class InternalDB {
   }
 
   async clearAll(): Promise<void> {
+    if (!this.db) return;
     const stores = [STORES.PORTFOLIOS, STORES.PROFILE, STORES.SETTINGS, STORES.TRANSACTIONS];
-    const tx = this.db!.transaction(stores, 'readwrite');
+    const tx = this.db.transaction(stores, 'readwrite');
     stores.forEach(s => tx.objectStore(s).clear());
     return new Promise((resolve) => {
       tx.oncomplete = () => resolve();
