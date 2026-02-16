@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
 import { 
   LayoutDashboard, 
@@ -13,7 +14,7 @@ import {
   Activity,
   Newspaper
 } from 'lucide-react';
-import { Portfolio, Currency, UserProfile, AppSettings, ExchangeRates, Transaction } from './types';
+import { Portfolio, Currency, UserProfile, AppSettings, ExchangeRates, Transaction, Goal } from './types';
 import { INITIAL_RATES } from './constants';
 import { db } from './db';
 import Dashboard from './components/Dashboard';
@@ -33,6 +34,11 @@ interface AppContextType {
   addPortfolio: (p: Omit<Portfolio, 'updatedAt'>) => void;
   updatePortfolio: (p: Portfolio) => void;
   deletePortfolio: (id: string) => void;
+  goals: Goal[];
+  setGoals: React.Dispatch<React.SetStateAction<Goal[]>>;
+  addGoal: (g: Omit<Goal, 'updatedAt'>) => void;
+  updateGoal: (g: Goal) => void;
+  deleteGoal: (id: string) => void;
   baseCurrency: Currency;
   setBaseCurrency: (c: Currency) => void;
   profile: UserProfile;
@@ -71,6 +77,7 @@ const App: React.FC = () => {
   const [isPortfolioModalOpen, setIsPortfolioModalOpen] = useState(false);
   
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [baseCurrency, setBaseCurrency] = useState<Currency>(Currency.CAD);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [settings, setSettings] = useState<AppSettings>({ 
@@ -90,13 +97,15 @@ const App: React.FC = () => {
   const lockGracePeriodRef = useRef<number>(3 * 60 * 1000); 
 
   const reloadData = useCallback(async () => {
-    const [savedPortfolios, savedProfile, savedSettings] = await Promise.all([
+    const [savedPortfolios, savedGoals, savedProfile, savedSettings] = await Promise.all([
       db.getAllPortfolios(),
+      db.getAllGoals(),
       db.getProfile(),
       db.getSettings()
     ]);
     
     if (savedPortfolios) setPortfolios(savedPortfolios);
+    if (savedGoals) setGoals(savedGoals);
     if (savedProfile) {
       setProfile(savedProfile);
       setIsAuth(true);
@@ -180,7 +189,6 @@ const App: React.FC = () => {
     if (isSyncing) return;
     setIsSyncing(true);
     try {
-      // Primary: Coinbase (High frequency updates, good uptime)
       const response = await fetch('https://api.coinbase.com/v2/exchange-rates?currency=USD');
       if (!response.ok) throw new Error('Primary API failed');
       const json = await response.json();
@@ -200,7 +208,6 @@ const App: React.FC = () => {
         setLastUpdated(new Date());
       }
     } catch (error) {
-      // Fallback: Open Exchange Rates (Very reliable CORS, updates roughly hourly)
       try {
         const fbResponse = await fetch('https://open.er-api.com/v6/latest/USD');
         const fbJson = await fbResponse.json();
@@ -248,6 +255,25 @@ const App: React.FC = () => {
     if (navigator.vibrate) navigator.vibrate([10, 50, 10]);
   };
 
+  const addGoal = (g: Omit<Goal, 'updatedAt'>) => {
+    const newG = { ...g, updatedAt: Date.now() };
+    setGoals(prev => [...prev, newG]);
+    db.saveGoal(newG);
+    if (navigator.vibrate) navigator.vibrate(10);
+  };
+
+  const updateGoal = (g: Goal) => {
+    const updated = { ...g, updatedAt: Date.now() };
+    setGoals(prev => prev.map(item => item.id === g.id ? updated : item));
+    db.saveGoal(updated);
+  };
+
+  const deleteGoal = (id: string) => {
+    setGoals(prev => prev.filter(g => g.id !== id));
+    db.deleteGoal(id);
+    if (navigator.vibrate) navigator.vibrate([10, 50, 10]);
+  };
+
   if (!isReady) {
     return (
       <div className="h-[100dvh] w-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-[#020617] text-blue-600">
@@ -267,6 +293,11 @@ const App: React.FC = () => {
     addPortfolio,
     updatePortfolio,
     deletePortfolio,
+    goals,
+    setGoals,
+    addGoal,
+    updateGoal,
+    deleteGoal,
     baseCurrency,
     setBaseCurrency,
     profile,

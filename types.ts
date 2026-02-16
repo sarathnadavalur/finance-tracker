@@ -13,15 +13,12 @@ export enum Currency {
 }
 
 export enum TransactionCategory {
-  // Expense Categories
   FOOD = 'Food',
   RENT = 'Rent',
   UTILITIES = 'Utilities',
   GROCERY = 'Grocery',
   ENTERTAINMENT = 'Entertainment',
-  // Income Categories
   SALARY = 'Salary',
-  // Shared
   OTHER = 'Other'
 }
 
@@ -51,6 +48,17 @@ export interface Portfolio {
   updatedAt: number;
 }
 
+export interface Goal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currency: Currency;
+  portfolioIds: string[]; // Linked portfolios that contribute to this goal
+  deadline?: string;
+  color: string;
+  updatedAt: number;
+}
+
 export interface UserProfile {
   name: string;
   firstName: string;
@@ -66,7 +74,7 @@ export interface UserProfile {
   lastActive?: number;
   syncEnabled?: boolean;
   lastCloudSync?: number;
-  trackedSymbols?: string[]; // New: symbols like BTC, AAPL, etc.
+  trackedSymbols?: string[];
 }
 
 export interface AppSettings {

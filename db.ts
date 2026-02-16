@@ -1,13 +1,14 @@
 
-import { Portfolio, UserProfile, AppSettings, Transaction } from './types';
+import { Portfolio, UserProfile, AppSettings, Transaction, Goal } from './types';
 
 const DB_NAME = 'VantageDB';
-const DB_VERSION = 2;
+const DB_VERSION = 3; // Incremented version for new store
 const STORES = {
   PORTFOLIOS: 'portfolios',
   PROFILE: 'profile',
   SETTINGS: 'settings',
-  TRANSACTIONS: 'transactions'
+  TRANSACTIONS: 'transactions',
+  GOALS: 'goals'
 };
 
 export class InternalDB {
@@ -38,6 +39,9 @@ export class InternalDB {
           const txStore = db.createObjectStore(STORES.TRANSACTIONS, { keyPath: 'id' });
           txStore.createIndex('portfolioId', 'portfolioId', { unique: false });
         }
+        if (!db.objectStoreNames.contains(STORES.GOALS)) {
+          db.createObjectStore(STORES.GOALS, { keyPath: 'id' });
+        }
       };
     });
   }
@@ -55,7 +59,27 @@ export class InternalDB {
     for (const t of txs) {
       await this.delete(STORES.TRANSACTIONS, t.id);
     }
+    // Also remove portfolio from any goals
+    const goals = await this.getAllGoals();
+    for (const g of goals) {
+      if (g.portfolioIds.includes(id)) {
+        g.portfolioIds = g.portfolioIds.filter(pid => pid !== id);
+        await this.saveGoal(g);
+      }
+    }
     return this.delete(STORES.PORTFOLIOS, id);
+  }
+
+  async getAllGoals(): Promise<Goal[]> {
+    return this.getAll<Goal>(STORES.GOALS);
+  }
+
+  async saveGoal(g: Goal): Promise<void> {
+    return this.put(STORES.GOALS, g);
+  }
+
+  async deleteGoal(id: string): Promise<void> {
+    return this.delete(STORES.GOALS, id);
   }
 
   async getAllTransactions(): Promise<Transaction[]> {
@@ -99,7 +123,7 @@ export class InternalDB {
 
   async clearAll(): Promise<void> {
     if (!this.db) return;
-    const stores = [STORES.PORTFOLIOS, STORES.PROFILE, STORES.SETTINGS, STORES.TRANSACTIONS];
+    const stores = [STORES.PORTFOLIOS, STORES.PROFILE, STORES.SETTINGS, STORES.TRANSACTIONS, STORES.GOALS];
     const tx = this.db.transaction(stores, 'readwrite');
     stores.forEach(s => tx.objectStore(s).clear());
     return new Promise((resolve) => {
