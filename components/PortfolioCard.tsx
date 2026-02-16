@@ -1,6 +1,5 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { Trash2, Calendar, Edit3, X, CreditCard, AlertCircle, List, ArrowUpRight, PiggyBank, Briefcase, TrendingDown, Clock } from 'lucide-react';
+import { Trash2, Edit3, X, CreditCard, List, ArrowUpRight, PiggyBank, Briefcase, TrendingDown, Clock, Calendar } from 'lucide-react';
 import { Portfolio, PortfolioType, Currency } from '../types';
 import { TYPE_COLORS } from '../constants';
 import { useApp } from '../App';
@@ -23,11 +22,11 @@ const PortfolioCard: React.FC<PortfolioCardProps> = ({ portfolio, onEdit }) => {
 
   const getIcon = () => {
     switch(portfolio.type) {
-      case PortfolioType.SAVINGS: return <PiggyBank size={14} />;
-      case PortfolioType.INVESTMENTS: return <Briefcase size={14} />;
-      case PortfolioType.DEBTS: return <TrendingDown size={14} />;
-      case PortfolioType.EMIS: return <Clock size={14} />;
-      default: return <List size={14} />;
+      case PortfolioType.SAVINGS: return <PiggyBank size={18} />;
+      case PortfolioType.INVESTMENTS: return <Briefcase size={18} />;
+      case PortfolioType.DEBTS: return <TrendingDown size={18} />;
+      case PortfolioType.EMIS: return <Clock size={18} />;
+      default: return <List size={18} />;
     }
   };
 
@@ -65,7 +64,7 @@ const PortfolioCard: React.FC<PortfolioCardProps> = ({ portfolio, onEdit }) => {
   const handleCardClick = () => {
     if (!showMenu) {
       setShowLedger(true);
-      if (navigator.vibrate) navigator.vibrate(2);
+      if (navigator.vibrate) navigator.vibrate(5);
     }
   };
 
@@ -88,93 +87,86 @@ const PortfolioCard: React.FC<PortfolioCardProps> = ({ portfolio, onEdit }) => {
         onMouseLeave={handleEnd}
         onTouchStart={handleStart}
         onTouchEnd={handleEnd}
-        className={`relative overflow-hidden p-5 rounded-[2rem] text-white shadow-premium ${colorClass} transition-all duration-500 select-none cursor-pointer flex flex-col justify-between min-h-[145px] border border-white/10
-          ${isPressing ? 'scale-[0.96] brightness-90 shadow-none' : 'hover:scale-[1.02] hover:shadow-xl'}
+        className={`relative overflow-hidden p-5 rounded-[2.2rem] text-white shadow-premium ${colorClass} transition-all duration-500 select-none cursor-pointer flex flex-col justify-between min-h-[175px] border border-white/20 tap-scale
+          ${isPressing ? 'brightness-90 saturate-150' : 'hover:scale-[1.01]'}
         `}
       >
+        {/* Context Menu Overlay */}
         {showMenu && (
           <div 
             onMouseDown={(e) => e.stopPropagation()}
             onMouseUp={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
             onTouchEnd={(e) => e.stopPropagation()}
-            className="absolute inset-0 z-30 bg-black/95 backdrop-blur-2xl flex items-center justify-center gap-6 animate-in fade-in zoom-in duration-300 p-2"
+            className="absolute inset-0 z-30 bg-black/90 backdrop-blur-3xl flex items-center justify-center gap-6 animate-in fade-in zoom-in duration-200 p-2 rounded-[2.2rem]"
           >
-                <button 
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    onEdit();
-                    setShowMenu(false);
-                  }}
-                  className="flex flex-col items-center gap-2 text-white group"
-                >
-                  <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center group-active:scale-90 transition-transform shadow-premium"><Edit3 size={20} /></div>
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Edit</span>
-                </button>
-                <button 
-                  onClick={handleDeleteClick}
-                  className="flex flex-col items-center gap-2 text-rose-400 group"
-                >
-                  <div className="w-12 h-12 rounded-full bg-rose-500/20 flex items-center justify-center group-active:scale-90 transition-transform shadow-premium"><Trash2 size={20} /></div>
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Delete</span>
-                </button>
-            
+            <button 
+              onClick={(e) => { e.stopPropagation(); onEdit(); setShowMenu(false); }}
+              className="flex flex-col items-center gap-2 text-white"
+            >
+              <div className="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shadow-lg"><Edit3 size={20} /></div>
+              <span className="text-[10px] font-bold uppercase tracking-widest">Edit</span>
+            </button>
+            <button 
+              onClick={handleDeleteClick}
+              className="flex flex-col items-center gap-2 text-rose-400"
+            >
+              <div className="w-12 h-12 rounded-full bg-rose-500/20 border border-rose-500/20 flex items-center justify-center shadow-lg"><Trash2 size={20} /></div>
+              <span className="text-[10px] font-bold uppercase tracking-widest">Delete</span>
+            </button>
             <button 
               onClick={(e) => { e.stopPropagation(); setShowMenu(false); }}
-              className="absolute top-4 right-5 p-2 text-white/40 hover:text-white active:scale-90"
+              className="absolute top-4 right-5 p-2 text-white/40 hover:text-white"
             >
               <X size={20} />
             </button>
           </div>
         )}
 
-        <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-br from-white/15 to-transparent pointer-events-none"></div>
+        <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-br from-white/20 via-transparent to-black/5 pointer-events-none"></div>
         
-        <div className="relative z-10 h-full flex flex-col justify-between">
-          <div>
-            <div className="flex justify-between items-start mb-1">
-               <div className="flex items-center gap-2">
-                 <div className="w-6 h-6 rounded-lg bg-black/10 flex items-center justify-center">
-                    {getIcon()}
-                 </div>
-                 <h3 className="text-[15px] font-extrabold tracking-tight line-clamp-1 opacity-95">{portfolio.name}</h3>
-               </div>
-               <span className="text-[9px] font-black uppercase tracking-[0.1em] text-white/60 bg-black/20 px-2 py-0.5 rounded-lg border border-white/10">
-                {portfolio.currency}
-              </span>
+        <div className="relative z-10 flex flex-col h-full">
+          {/* Header row with Icon and Currency */}
+          <div className="flex justify-between items-center mb-3">
+            <div className="w-9 h-9 rounded-xl bg-black/20 flex items-center justify-center shrink-0 shadow-inner">
+              {getIcon()}
             </div>
-            
-            {isEMI && (
-              <div className="flex items-center gap-1.5 text-white/70 mt-1">
-                <Clock size={10} strokeWidth={3} />
-                <span className="text-[9px] font-black uppercase tracking-widest">{portfolio.emiStartDate}</span>
-              </div>
-            )}
+            <div className="bg-black/20 px-2.5 py-1 rounded-lg border border-white/10 shadow-sm shrink-0">
+              <span className="text-[10px] font-black tracking-widest leading-none">{portfolio.currency}</span>
+            </div>
           </div>
 
+          {/* Name - Ensure no trimming, use wrap */}
+          <h3 className="text-[16px] font-black tracking-tight leading-tight mb-2 break-words">
+            {portfolio.name}
+          </h3>
+
+          {/* Value Area */}
           <div className="mt-auto">
-            <p className={`${isEMI ? 'text-xl' : 'text-2xl'} font-black tracking-tighter tabular-nums leading-none ${settings.privacyMode ? 'blur-md opacity-50' : ''}`}>
-              {formatValue(portfolio.value, portfolio.currency)}
-            </p>
-            
-            {isEMI ? (
-              <div className="mt-4 flex items-center justify-between text-white/80 border-t border-white/15 pt-3">
-                <div className="flex flex-col">
-                  <span className="text-[8px] font-black uppercase tracking-widest opacity-60">Installment</span>
-                  <span className={`text-[12px] font-black leading-none ${settings.privacyMode ? 'blur-sm' : ''}`}>
-                    {formatValue(portfolio.monthlyEmiAmount || 0, portfolio.currency)}
-                  </span>
-                </div>
-                <div className="p-2 bg-white/10 rounded-xl">
-                  <CreditCard size={14} />
-                </div>
-              </div>
-            ) : (
-              <div className="mt-3 flex items-center justify-between">
-                <span className="text-[8px] font-black uppercase tracking-[0.2em] opacity-60">Ledger View</span>
-                <ArrowUpRight size={14} className="opacity-50" />
+            {isEMI && (
+              <div className="flex items-center gap-1 text-white/60 mb-1">
+                <Calendar size={10} strokeWidth={3} />
+                <span className="text-[9px] font-bold uppercase tracking-widest">Start: {portfolio.emiStartDate}</span>
               </div>
             )}
+            
+            <p className={`${isEMI ? 'text-[22px]' : 'text-[26px]'} font-black tracking-tighter tabular-nums leading-none drop-shadow-md transition-all duration-700 ${settings.privacyMode ? 'blur-md opacity-40' : ''}`}>
+              {formatValue(portfolio.value, portfolio.currency)}
+            </p>
+
+            {/* Footer with Minimal EMI Value or simply an icon */}
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
+              <div className="flex flex-col min-w-0">
+                {isEMI && (
+                  <span className={`text-[14px] font-black leading-none ${settings.privacyMode ? 'blur-sm' : ''}`}>
+                    {formatValue(portfolio.monthlyEmiAmount || 0, portfolio.currency)}
+                  </span>
+                )}
+              </div>
+              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shadow-inner shrink-0">
+                {isEMI ? <CreditCard size={16} /> : <ArrowUpRight size={16} className="opacity-80" />}
+              </div>
+            </div>
           </div>
         </div>
       </div>

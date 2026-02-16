@@ -60,15 +60,15 @@ const Dashboard: React.FC = () => {
   const formattedLastUpdated = lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   return (
-    <div className="w-full space-y-7 flex flex-col items-stretch pb-10">
-      <div className="flex flex-col gap-5">
+    <div className="w-full space-y-8 flex flex-col items-stretch pb-10">
+      <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between px-1">
           <div className="flex flex-col">
-            <h1 className="text-3xl font-black tracking-tighter text-slate-900 dark:text-white leading-tight">Overview</h1>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Financial Pulse</p>
+            <h1 className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white leading-tight">Overview</h1>
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 opacity-60">Session Pulse</p>
           </div>
-          <div className="flex items-center gap-2 bg-white dark:bg-slate-900/50 px-4 py-2 rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Unit</span>
+          <div className="flex items-center gap-2 glass px-5 py-2.5 rounded-2xl border-white/40 shadow-sm tap-scale cursor-pointer">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Unit</span>
             <select 
               value={baseCurrency} 
               onChange={(e) => setBaseCurrency(e.target.value as Currency)} 
@@ -82,25 +82,24 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Real-time Ticker Bar */}
-        <div className="w-full bg-white/40 dark:bg-slate-900/30 backdrop-blur-xl rounded-3xl border border-white/40 dark:border-white/5 p-4 flex flex-col gap-2 shadow-premium transition-all">
+        <div className="w-full glass rounded-[2.5rem] p-5 flex flex-col gap-3 shadow-premium transition-all">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
-              <Activity size={12} className={`text-blue-500 ${isSyncing ? 'animate-bounce' : 'animate-pulse'}`} />
+              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
               <span className="text-[10px] font-black uppercase tracking-tighter text-blue-600 dark:text-blue-400">High-Frequency Market Sync</span>
             </div>
-            <div className="flex items-center gap-1.5 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/10">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+            <div className="flex items-center gap-1.5 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 shadow-inner-dark">
               <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">{formattedLastUpdated}</span>
             </div>
           </div>
           
-          <div className="flex items-center gap-6 overflow-x-auto no-scrollbar py-1">
+          <div className="flex items-center gap-5 overflow-x-auto no-scrollbar py-1">
             {otherCurrencies.map(curr => {
               const currentRate = rates[baseCurrency][curr];
               return (
-                <div key={curr} className="flex items-center gap-3 shrink-0 bg-white/50 dark:bg-slate-800/50 px-4 py-2.5 rounded-2xl border border-slate-100 dark:border-white/5 transition-colors">
+                <div key={curr} className="flex items-center gap-4 shrink-0 bg-white/60 dark:bg-slate-800/60 px-5 py-3 rounded-2xl border border-white/40 dark:border-white/5 shadow-sm tap-scale cursor-pointer">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{baseCurrency}/{curr}</span>
-                  <span className={`text-[13px] font-black text-slate-900 dark:text-white tabular-nums tracking-tighter ${isSyncing ? 'opacity-50' : 'opacity-100'}`}>
+                  <span className={`text-[14px] font-black text-slate-900 dark:text-white tabular-nums tracking-tighter ${isSyncing ? 'opacity-40' : 'opacity-100'}`}>
                     {currentRate.toFixed(4)}
                   </span>
                 </div>
@@ -110,55 +109,55 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex flex-col gap-4">
-        {/* Net Worth Card - Premium Mesh Gradient */}
-        <div className="relative overflow-hidden rounded-[3rem] py-10 px-8 md:py-14 md:px-12 text-white shadow-premium mesh-bg group transition-all duration-500 hover:shadow-glow">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/30 rounded-full blur-[100px] -mr-32 -mt-32 group-hover:scale-110 transition-transform duration-700"></div>
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-600/20 rounded-full blur-[80px] -ml-24 -mb-24 group-hover:scale-110 transition-transform duration-700"></div>
+      <div className="flex flex-col gap-5">
+        {/* Net Worth Card - iOS 17 Premium Mesh Gradient */}
+        <div className="relative overflow-hidden rounded-[3rem] py-12 px-10 md:py-16 md:px-14 text-white shadow-2xl mesh-bg group transition-all duration-700 hover:shadow-glow tap-scale cursor-pointer border-0.5 border-white/20">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-white/20 rounded-full blur-[120px] -mr-40 -mt-40 group-hover:scale-125 transition-transform duration-1000"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-400/20 rounded-full blur-[100px] -ml-32 -mb-32 group-hover:scale-125 transition-transform duration-1000"></div>
           
-          <div className="relative z-10 flex flex-col items-start gap-2">
-            <div className="flex items-center gap-2 opacity-60">
+          <div className="relative z-10 flex flex-col items-start gap-3">
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20">
               <TrendingUp size={12} className="text-emerald-400" />
-              <p className="text-slate-200 font-bold tracking-[0.2em] uppercase text-[10px] md:text-xs">Net Asset Value</p>
+              <p className="text-white font-black tracking-[0.25em] uppercase text-[9px]">Net Asset Value</p>
             </div>
-            <h2 className={`text-4xl md:text-6xl font-black tracking-tighter tabular-nums transition-all duration-500 ${settings.privacyMode ? 'blur-md opacity-40' : 'group-hover:translate-x-1'}`}>
+            <h2 className={`text-5xl md:text-7xl font-black tracking-tighter tabular-nums transition-all duration-700 drop-shadow-lg ${settings.privacyMode ? 'blur-xl opacity-30' : 'group-hover:translate-x-1'}`}>
               {formatCurrency(totals.netValue)}
             </h2>
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-5">
           <button 
             onClick={() => setIsPortfolioModalOpen(true)}
-            className="flex items-center justify-center gap-3 bg-gradient-to-br from-blue-500 to-blue-700 text-white p-5 rounded-[2rem] font-black text-[13px] uppercase tracking-[0.15em] shadow-premium shadow-blue-500/20 active:scale-95 transition-all hover:brightness-110"
+            className="flex items-center justify-center gap-3 glossy-blue text-white p-6 rounded-[2.2rem] font-black text-[14px] uppercase tracking-[0.2em] shadow-glow active:scale-95 transition-all tap-scale shadow-inner-light"
           >
-            <Plus size={18} strokeWidth={3} />
+            <Plus size={22} strokeWidth={3} />
             <span>Add Asset</span>
           </button>
           <button 
             onClick={() => setIsTxModalOpen(true)}
-            className="flex items-center justify-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 p-5 rounded-[2rem] font-black text-[13px] uppercase tracking-[0.15em] shadow-premium active:scale-95 transition-all hover:bg-slate-50 dark:hover:bg-slate-800"
+            className="flex items-center justify-center gap-3 glass p-6 rounded-[2.2rem] font-black text-[14px] uppercase tracking-[0.2em] shadow-premium active:scale-95 transition-all tap-scale shadow-inner-light dark:shadow-inner-dark"
           >
-            <Receipt size={18} className="text-blue-500" strokeWidth={2.5} />
-            <span className="text-slate-900 dark:text-white">Transaction</span>
+            <Receipt size={22} className="text-blue-500" strokeWidth={2.5} />
+            <span className="text-slate-900 dark:text-white">New Entry</span>
           </button>
         </div>
       </div>
 
-      {/* Distribution Breakdown */}
-      <div className="bg-white/60 dark:bg-slate-900/40 rounded-[2.5rem] border border-slate-100 dark:border-white/5 p-8 shadow-premium backdrop-blur-md">
-        <div className="flex items-center justify-between mb-8">
+      {/* Distribution Breakdown - More Stylish Glass Cards */}
+      <div className="glass rounded-[3rem] p-10 shadow-premium">
+        <div className="flex items-center justify-between mb-10">
           <div className="flex flex-col">
-            <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Distribution</h3>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Portfolio Weights</p>
+            <h3 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white leading-none">Distribution</h3>
+            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2 opacity-60">Asset Allocation</p>
           </div>
-          <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl">
-            <TrendingUp size={16} className="text-blue-500" />
+          <div className="w-12 h-12 bg-white/60 dark:bg-slate-800 rounded-2xl flex items-center justify-center shadow-sm">
+            <TrendingUp size={22} className="text-blue-600" />
           </div>
         </div>
         
-        <div className="space-y-1">
+        <div className="space-y-2">
           <TableRows label="Investments" amount={totals.investments} percentage={totals.investmentsPercentage} color="bg-blue-500" currency={baseCurrency} isPrivate={settings.privacyMode} />
           <TableRows label="Savings" amount={totals.savings} percentage={totals.savingsPercentage} color="bg-emerald-500" currency={baseCurrency} isPrivate={settings.privacyMode} />
           <TableRows label="Liabilities" amount={totals.debt + totals.emiTotal} percentage="Owed" color="bg-rose-500" currency={baseCurrency} isPrivate={settings.privacyMode} />
@@ -169,21 +168,21 @@ const Dashboard: React.FC = () => {
 };
 
 const TableRows: React.FC<{ label: string; amount: number; percentage: string; color: string; currency: string; isPrivate: boolean }> = ({ label, amount, percentage, color, currency, isPrivate }) => (
-  <div className="group flex items-center justify-between py-5 border-b border-slate-50 dark:border-white/5 last:border-0 transition-all hover:px-2">
-    <div className="flex items-center gap-4">
-      <div className={`w-3 h-3 rounded-full ${color} shadow-glow shadow-${color.split('-')[1]}-500/20`}></div>
+  <div className="group flex items-center justify-between py-6 px-4 rounded-[1.8rem] hover:bg-white/40 dark:hover:bg-slate-800/40 border border-transparent hover:border-white/40 transition-all tap-scale cursor-pointer">
+    <div className="flex items-center gap-5">
+      <div className={`w-3.5 h-3.5 rounded-full ${color} shadow-glow shadow-${color.split('-')[1]}-500/30 ring-4 ring-${color.split('-')[1]}-500/10`}></div>
       <div className="flex flex-col">
-        <span className="font-extrabold text-[15px] text-slate-900 dark:text-slate-100">{label}</span>
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{percentage}</span>
+        <span className="font-black text-[17px] text-slate-900 dark:text-slate-100 leading-tight">{label}</span>
+        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1 opacity-60">{percentage}</span>
       </div>
     </div>
     <div className="flex flex-col items-end">
-      <span className={`font-black tabular-nums text-[16px] text-slate-900 dark:text-white transition-all duration-500 ${isPrivate ? 'blur-md opacity-40' : ''}`}>
+      <span className={`font-black tabular-nums text-[18px] text-slate-900 dark:text-white transition-all duration-700 ${isPrivate ? 'blur-md opacity-30' : ''}`}>
         {isPrivate ? '••••' : new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount)}
       </span>
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <ArrowUpRight size={10} className="text-blue-500" />
-        <span className="text-[9px] font-black uppercase text-blue-500 tracking-tighter">Details</span>
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all mt-1 translate-y-1 group-hover:translate-y-0">
+        <span className="text-[10px] font-black uppercase text-blue-500 tracking-tighter">View Details</span>
+        <ArrowUpRight size={12} className="text-blue-500" />
       </div>
     </div>
   </div>

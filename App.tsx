@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
 import { 
   LayoutDashboard, 
@@ -323,23 +322,23 @@ const App: React.FC = () => {
       <div className="h-full min-h-[100dvh] flex flex-col md:flex-row max-w-7xl mx-auto bg-slate-50 dark:bg-[#020617] transition-all duration-500 antialiased overflow-hidden w-full relative">
         {isLocked && <UnlockScreen profile={profile} onUnlock={() => setIsLocked(false)} />}
 
-        <header className="md:hidden pt-4 px-5 pb-3 flex justify-between items-center shrink-0 bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl sticky top-0 z-40 w-full border-b border-white/20 dark:border-white/5">
+        <header className="md:hidden pt-4 px-5 pb-3 flex justify-between items-center shrink-0 glass sticky top-0 z-40 w-full border-b border-white/20 dark:border-white/5">
           <div 
-            className="flex items-center gap-3 cursor-pointer active:opacity-70 active:scale-95 transition-all flex-1"
+            className="flex items-center gap-3 cursor-pointer active:opacity-70 tap-scale flex-1"
             onClick={() => {
               setActiveTab('settings');
               setShouldOpenProfile(true);
               if (navigator.vibrate) navigator.vibrate(5);
             }}
           >
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white overflow-hidden font-bold text-xs shadow-glow">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white overflow-hidden font-bold text-xs shadow-glow shadow-inner-light">
                {profile.firstName[0]}
             </div>
             <div className="flex flex-col">
-              <span className="font-extrabold text-sm tracking-tight text-slate-900 dark:text-white leading-none">Vantage</span>
+              <span className="font-black text-sm tracking-tight text-slate-900 dark:text-white leading-none">Vantage</span>
               <div className="flex items-center gap-1 mt-0.5">
                 <ShieldCheck size={10} className="text-emerald-500" />
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Secured Vault</span>
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Vault Secured</span>
               </div>
             </div>
           </div>
@@ -349,48 +348,48 @@ const App: React.FC = () => {
                 setSettings(s => ({ ...s, privacyMode: !s.privacyMode }));
                 if (navigator.vibrate) navigator.vibrate(5);
               }}
-              className={`p-2 rounded-2xl transition-all duration-300 ${settings.privacyMode ? 'bg-rose-500/10 text-rose-500 ring-1 ring-rose-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}
+              className={`p-2.5 rounded-2xl transition-all duration-300 ${settings.privacyMode ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30' : 'bg-slate-200/50 dark:bg-slate-800/50 text-slate-500'}`}
             >
               {settings.privacyMode ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
         </header>
 
-        <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-lg bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border border-white/30 dark:border-white/10 md:relative md:w-64 md:left-0 md:translate-x-0 md:bottom-0 md:border-none md:bg-transparent z-50 rounded-[2rem] px-2 py-2 shadow-premium md:shadow-none transition-all duration-500 md:flex md:flex-col md:items-stretch overflow-hidden">
-          <div className="flex md:flex-col justify-between items-center md:items-start md:p-6 gap-0.5 md:gap-1">
+        <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-lg glass md:relative md:w-64 md:left-0 md:translate-x-0 md:bottom-0 md:border-none md:bg-transparent z-50 rounded-[2.5rem] px-2 py-2 shadow-2xl md:shadow-none transition-all duration-500 md:flex md:flex-col md:items-stretch overflow-hidden">
+          <div className="flex md:flex-col justify-between items-center md:items-start md:p-6 gap-1 md:gap-1.5">
             <div className="hidden md:flex flex-col gap-5 mb-10 w-full">
                <div 
-                  className="flex items-center gap-4 cursor-pointer active:opacity-70 transition-all p-2 rounded-3xl hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="flex items-center gap-4 cursor-pointer active:opacity-70 transition-all p-3 rounded-[2rem] hover:bg-white/40 dark:hover:bg-slate-800/40"
                   onClick={() => {
                     setActiveTab('settings');
                     setShouldOpenProfile(true);
                     if (navigator.vibrate) navigator.vibrate(5);
                   }}
                 >
-                  <div className="w-12 h-12 rounded-[1.2rem] bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white overflow-hidden font-black shadow-glow">
+                  <div className="w-14 h-14 rounded-[1.5rem] bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white overflow-hidden font-black shadow-glow shadow-inner-light">
                      {profile.firstName[0]}
                   </div>
                   <div className="flex flex-col overflow-hidden">
-                    <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white leading-none mb-1 truncate">{profile.name}</span>
+                    <span className="font-black text-lg tracking-tight text-slate-900 dark:text-white leading-none mb-1 truncate">{profile.name}</span>
                     <div className="flex items-center gap-1">
-                      <ShieldCheck size={11} className="text-emerald-500" />
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] truncate">Vault Active</span>
+                      <ShieldCheck size={12} className="text-emerald-500" />
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] truncate">Active Vault</span>
                     </div>
                   </div>
                </div>
             </div>
 
-            <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={18} />} label="Dashboard" />
-            <TabButton active={activeTab === 'portfolios'} onClick={() => setActiveTab('portfolios')} icon={<Wallet size={18} />} label="Assets" />
-            <TabButton active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} icon={<History size={18} />} label="Activity" />
-            <TabButton active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon={<Sparkles size={18} />} label="AI" />
-            <TabButton active={activeTab === 'news'} onClick={() => setActiveTab('news')} icon={<Newspaper size={18} />} label="News" />
-            <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<SettingsIcon size={18} />} label="Settings" />
+            <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Dashboard" />
+            <TabButton active={activeTab === 'portfolios'} onClick={() => setActiveTab('portfolios')} icon={<Wallet size={20} />} label="Assets" />
+            <TabButton active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} icon={<History size={20} />} label="Activity" />
+            <TabButton active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon={<Sparkles size={20} />} label="AI Hub" />
+            <TabButton active={activeTab === 'news'} onClick={() => setActiveTab('news')} icon={<Newspaper size={20} />} label="News" />
+            <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<SettingsIcon size={20} />} label="Settings" />
           </div>
         </nav>
 
         <main className="flex-1 overflow-y-auto pb-32 md:pb-8 scroll-smooth scroll-container no-scrollbar w-full">
-          <div className="w-full px-4 pt-4 md:px-8 md:pt-8 animate-in fade-in slide-in-from-bottom-3 duration-700 flex flex-col items-stretch max-w-5xl mx-auto">
+          <div className="w-full px-5 pt-4 md:px-10 md:pt-10 animate-in fade-in slide-in-from-bottom-5 duration-700 flex flex-col items-stretch max-w-5xl mx-auto">
             {activeTab === 'dashboard' && <Dashboard />}
             {activeTab === 'portfolios' && <Portfolios />}
             {activeTab === 'transactions' && <Transactions />}
@@ -423,25 +422,20 @@ interface TabButtonProps {
 }
 
 const TabButton: React.FC<TabButtonProps> = ({ active, onClick, icon, label }) => {
-  const handleClick = () => {
-    onClick();
-    if (navigator.vibrate) navigator.vibrate(5);
-  };
-
   return (
     <button 
-      onClick={handleClick}
+      onClick={() => { onClick(); if (navigator.vibrate) navigator.vibrate(5); }}
       className={`
-        flex flex-col md:flex-row items-center gap-1 md:gap-4 p-2 md:px-4 md:py-3 rounded-[1.2rem] flex-1 md:w-full transition-all duration-300
+        flex flex-col md:flex-row items-center gap-1.5 md:gap-4 p-2.5 md:px-5 md:py-4 rounded-[1.8rem] flex-1 md:w-full transition-all duration-300 tap-scale
         ${active 
-          ? 'text-blue-600 bg-blue-50/50 dark:bg-blue-600/10 md:shadow-sm scale-100' 
-          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50'}
+          ? 'text-blue-600 bg-white/60 dark:bg-blue-600/10 shadow-lg md:shadow-md' 
+          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-white/30 dark:hover:bg-slate-800/30'}
       `}
     >
-      <div className={`transition-transform duration-300 ${active ? 'scale-110' : 'scale-100'}`}>
+      <div className={`transition-all duration-300 ${active ? 'scale-110 drop-shadow-glow' : 'scale-100 opacity-80'}`}>
         {icon}
       </div>
-      <span className={`text-[8px] md:text-[14px] font-black md:font-extrabold tracking-tight ${active ? 'opacity-100' : 'opacity-70'}`}>{label}</span>
+      <span className={`text-[9px] md:text-[15px] font-black md:font-black tracking-tight ${active ? 'opacity-100' : 'opacity-60'}`}>{label}</span>
     </button>
   );
 };
