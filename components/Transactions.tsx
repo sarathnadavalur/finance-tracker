@@ -1,0 +1,393 @@
+
+import React, { useState, useEffect, useMemo } from 'react';
+import { useApp } from '../App';
+import { db } from '../db';
+import { Transaction, TransactionCategory, Portfolio, Currency } from '../types';
+import { 
+  Plus, 
+  ArrowUpRight, 
+  ArrowDownLeft, 
+  Filter, 
+  Search, 
+  Calendar, 
+  TrendingUp, 
+  BarChart3, 
+  ChevronRight,
+  X,
+  CreditCard,
+  PieChart,
+  History,
+  Loader2
+} from 'lucide-react';
+
+const Transactions: React.FC = () => {
+  const { portfolios, baseCurrency, settings } = useApp();
+  const [subTab, setSubTab] = useState<'history' | 'insights'>('history');
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Filter state for Insights
+  const [timeRange, setTimeRange] = useState<'7d' | '1m' | '1y' | 'custom'>('1m');
+  const [customRange, setCustomRange] = useState({ start: '', end: '' });
+
+  const [formData, setFormData] = useState({
+    portfolioId: portfolios[0]?.id || '',
+    amount: '',
+    type: 'expense' as 'income' | 'expense',
+    category: TransactionCategory.OTHER,
+    note: ''
+  });
+
+  const fetchTransactions = async () => {
+    setIsLoading(true);
+    const data = await db.getAllTransactions();
+    setTransactions(data.sort((a, b) => b.date - a.date));
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
+
+  const handleAddTransaction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amountNum = parseFloat(formData.amount);
+    const targetPortfolio = portfolios.find(p => p.id === formData.portfolioId);
+    if (isNaN(amountNum) || !targetPortfolio) return;
+
+    const newTx: Transaction = {
+      id: Date.now().toString(),
+      portfolioId: targetPortfolio.id,
+      amount: amountNum,
+      type: formData.type,
+      category: formData.category,
+      note: formData.note,
+      date: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    await db.saveTransaction(newTx);
+    
+    // Independent Tracking: Transactions no longer modify portfolio balance
+
+    setFormData({ 
+      portfolioId: portfolios[0]?.id || '', 
+      amount: '', 
+      type: 'expense', 
+      category: TransactionCategory.OTHER, 
+      note: '' 
+    });
+    setShowAddForm(false);
+    fetchTransactions();
+    if (navigator.vibrate) navigator.vibrate(10);
+  };
+
+  const filteredTransactions = useMemo(() => {
+    const now = Date.now();
+    const msInDay = 24 * 60 * 60 * 1000;
+    
+    return transactions.filter(tx => {
+      if (timeRange === '7d') return now - tx.date <= 7 * msInDay;
+      if (timeRange === '1m') return now - tx.date <= 30 * msInDay;
+      if (timeRange === '1y') return now - tx.date <= 365 * msInDay;
+      if (timeRange === 'custom') {
+        const start = customRange.start ? new Date(customRange.start).getTime() : 0;
+        const end = customRange.end ? new Date(customRange.end).getTime() + msInDay : Infinity;
+        return tx.date >= start && tx.date <= end;
+      }
+      return true;
+    });
+  }, [transactions, timeRange, customRange]);
+
+  const insightsData = useMemo(() => {
+    // Multi-currency Grouping: { "Category_Currency": { total, count, category, currency } }
+    const groups: Record<string, { total: number; count: number; type: 'income' | 'expense'; category: string; currency: string }> = {};
+    
+    filteredTransactions.forEach(tx => {
+      const p = portfolios.find(port => port.id === tx.portfolioId);
+      const currency = p?.currency || baseCurrency;
+      const key = `${tx.category}_${currency}`;
+      
+      if (!groups[key]) {
+        groups[key] = { total: 0, count: 0, type: tx.type, category: tx.category, currency };
+      }
+      groups[key].total += tx.amount;
+      groups[key].count += 1;
+    });
+
+    return Object.values(groups).sort((a, b) => b.total - a.total);
+  }, [filteredTransactions, portfolios, baseCurrency]);
+
+  const formatValue = (val: number, currencyCode: string = baseCurrency) => {
+    const f = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currencyCode,
+      maximumFractionDigits: 0
+    }).format(val);
+    return settings.privacyMode ? '••••' : f;
+  };
+
+  const formatDate = (ts: number) => {
+    return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const expenseCategories = [
+    TransactionCategory.FOOD,
+    TransactionCategory.RENT,
+    TransactionCategory.UTILITIES,
+    TransactionCategory.GROCERY,
+    TransactionCategory.ENTERTAINMENT,
+    TransactionCategory.OTHER
+  ];
+
+  const incomeCategories = [
+    TransactionCategory.SALARY,
+    TransactionCategory.OTHER
+  ];
+
+  return (
+    <div className="w-full flex flex-col min-h-full">
+      <div className="pt-6 pb-4 px-1 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-black tracking-tighter text-slate-900 dark:text-white leading-tight">Activity</h1>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mt-0.5">Stream of Transactions</p>
+          </div>
+          <button 
+            onClick={() => setShowAddForm(true)}
+            className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30 active:scale-90 transition-transform"
+          >
+            <Plus size={20} />
+          </button>
+        </div>
+
+        {/* Sub-Tabs Navigation */}
+        <div className="flex p-1 bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-white/5 rounded-2xl shadow-sm">
+          <button 
+            onClick={() => setSubTab('history')}
+            className={`flex-1 py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 ${subTab === 'history' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400'}`}
+          >
+            <History size={14} />
+            History
+          </button>
+          <button 
+            onClick={() => setSubTab('insights')}
+            className={`flex-1 py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 ${subTab === 'insights' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400'}`}
+          >
+            <PieChart size={14} />
+            Insights
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 mt-4">
+        {subTab === 'history' ? (
+          <div className="space-y-3 pb-20">
+            {isLoading ? (
+               <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-3">
+                  <Loader2 size={32} className="animate-spin" />
+                  <span className="text-xs font-bold uppercase tracking-widest">Loading Records...</span>
+               </div>
+            ) : transactions.length === 0 ? (
+              <div className="py-20 flex flex-col items-center justify-center text-slate-400/40 gap-4">
+                <div className="w-16 h-16 rounded-full border-4 border-dashed border-current flex items-center justify-center">
+                   <CreditCard size={32} />
+                </div>
+                <p className="text-sm font-bold">No activity found yet</p>
+              </div>
+            ) : (
+              transactions.map(tx => {
+                const p = portfolios.find(p => p.id === tx.portfolioId);
+                return (
+                  <div key={tx.id} className="bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-4 rounded-3xl flex items-center justify-between group shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${tx.type === 'income' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                        {tx.type === 'income' ? <ArrowDownLeft size={22} /> : <ArrowUpRight size={22} />}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-slate-900 dark:text-white text-sm tracking-tight">{tx.category}</span>
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{formatDate(tx.date)}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-bold tracking-tight line-clamp-1">{p?.name || 'Unknown Portfolio'}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className={`font-black tabular-nums text-sm ${tx.type === 'income' ? 'text-emerald-500' : 'text-slate-900 dark:text-white'} ${settings.privacyMode ? 'blur-sm' : ''}`}>
+                        {tx.type === 'income' ? '+' : '-'}{formatValue(tx.amount, p?.currency)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        ) : (
+          <div className="space-y-6 pb-20 animate-in fade-in duration-300">
+            {/* Time Range Selector */}
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: '7d', label: '7 Days' },
+                { id: '1m', label: '1 Month' },
+                { id: '1y', label: '1 Year' },
+                { id: 'custom', label: 'Custom' }
+              ].map(range => (
+                <button 
+                  key={range.id}
+                  onClick={() => setTimeRange(range.id as any)}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${timeRange === range.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-white dark:bg-slate-900/50 text-slate-500 border border-slate-100 dark:border-white/5'}`}
+                >
+                  {range.label}
+                </button>
+              ))}
+            </div>
+
+            {timeRange === 'custom' && (
+              <div className="grid grid-cols-2 gap-3 animate-in slide-in-from-top-2 duration-300">
+                <input 
+                  type="date" 
+                  className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-white/5 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
+                  value={customRange.start}
+                  onChange={(e) => setCustomRange({...customRange, start: e.target.value})}
+                />
+                <input 
+                  type="date" 
+                  className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-white/5 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
+                  value={customRange.end}
+                  onChange={(e) => setCustomRange({...customRange, end: e.target.value})}
+                />
+              </div>
+            )}
+
+            {/* Accumulated Totals grouped by Category & Currency */}
+            <div className="grid gap-4">
+              {insightsData.length === 0 ? (
+                <div className="py-20 flex flex-col items-center justify-center opacity-30 text-slate-400">
+                   <BarChart3 size={40} className="mb-2" />
+                   <p className="text-xs font-bold uppercase tracking-widest">No data for this period</p>
+                </div>
+              ) : (
+                insightsData.map((data) => (
+                  <div key={`${data.category}_${data.currency}`} className="bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-5 rounded-3xl shadow-sm flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full ${data.type === 'income' ? 'bg-emerald-500' : 'bg-blue-500'}`}></div>
+                        <span className="font-black text-sm text-slate-900 dark:text-white tracking-tight">
+                          {data.category} ({data.currency})
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{data.count} txs</span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                       <span className={`text-xl font-black tabular-nums text-slate-900 dark:text-white ${settings.privacyMode ? 'blur-sm' : ''}`}>
+                        {formatValue(data.total, data.currency)}
+                       </span>
+                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Accumulated</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Add Transaction Form Modal */}
+      {showAddForm && (
+        <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-md flex items-end animate-in fade-in duration-300">
+          <div className="w-full bg-white dark:bg-slate-900 rounded-t-[3rem] p-8 animate-in slide-in-from-bottom duration-300 max-h-[90vh] overflow-y-auto no-scrollbar">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Quick Entry</h3>
+              <button onClick={() => setShowAddForm(false)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                <X size={24} className="text-slate-900 dark:text-white" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddTransaction} className="space-y-6">
+              <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
+                <button 
+                  type="button"
+                  onClick={() => setFormData({...formData, type: 'expense', category: TransactionCategory.OTHER})}
+                  className={`flex-1 py-3 rounded-xl font-black text-sm transition-all ${formData.type === 'expense' ? 'bg-white dark:bg-slate-700 text-rose-500 shadow-sm' : 'text-slate-400'}`}
+                >
+                  Expense
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setFormData({...formData, type: 'income', category: TransactionCategory.OTHER})}
+                  className={`flex-1 py-3 rounded-xl font-black text-sm transition-all ${formData.type === 'income' ? 'bg-white dark:bg-slate-700 text-emerald-500 shadow-sm' : 'text-slate-400'}`}
+                >
+                  Income
+                </button>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block ml-2">Select Portfolio</label>
+                <select 
+                  required
+                  className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 font-bold text-slate-900 dark:text-white outline-none appearance-none"
+                  value={formData.portfolioId}
+                  onChange={(e) => setFormData({...formData, portfolioId: e.target.value})}
+                >
+                  {portfolios.map(p => <option key={p.id} value={p.id}>{p.name} ({p.currency})</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block ml-2">Amount</label>
+                <div className="relative">
+                   <input 
+                    required
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-6 py-5 text-3xl font-black text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block ml-2">Category</label>
+                  <select 
+                    className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 font-bold text-slate-900 dark:text-white outline-none appearance-none"
+                    value={formData.category}
+                    onChange={(e) => setFormData({...formData, category: e.target.value as TransactionCategory})}
+                  >
+                    {formData.type === 'expense' ? (
+                      expenseCategories.map(c => <option key={c} value={c}>{c}</option>)
+                    ) : (
+                      incomeCategories.map(c => <option key={c} value={c}>{c}</option>)
+                    )}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block ml-2">Notes</label>
+                  <input 
+                    type="text"
+                    placeholder="Reference..."
+                    className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 font-bold text-slate-900 dark:text-white outline-none placeholder:text-slate-400"
+                    value={formData.note}
+                    onChange={(e) => setFormData({...formData, note: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <button 
+                type="submit"
+                className="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-xl shadow-blue-500/30 active:scale-95 transition-all text-lg"
+              >
+                Post Entry
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Transactions;

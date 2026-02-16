@@ -11,7 +11,7 @@ interface LedgerProps {
 }
 
 const Ledger: React.FC<LedgerProps> = ({ portfolio, onClose }) => {
-  const { updatePortfolio, settings } = useApp();
+  const { settings } = useApp();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -35,7 +35,6 @@ const Ledger: React.FC<LedgerProps> = ({ portfolio, onClose }) => {
     const amountNum = parseFloat(formData.amount);
     if (isNaN(amountNum)) return;
 
-    // Fix: Added missing required property 'updatedAt' to satisfy the Transaction interface.
     const newTx: Transaction = {
       id: Date.now().toString(),
       portfolioId: portfolio.id,
@@ -49,10 +48,7 @@ const Ledger: React.FC<LedgerProps> = ({ portfolio, onClose }) => {
 
     await db.saveTransaction(newTx);
     
-    // Update Portfolio Value
-    const delta = formData.type === 'income' ? amountNum : -amountNum;
-    const updatedPortfolio = { ...portfolio, value: portfolio.value + delta };
-    updatePortfolio(updatedPortfolio);
+    // Independent Tracking: No longer updating portfolio value here
 
     setFormData({ amount: '', type: 'expense', category: TransactionCategory.OTHER, note: '' });
     setShowAddForm(false);
@@ -61,12 +57,10 @@ const Ledger: React.FC<LedgerProps> = ({ portfolio, onClose }) => {
   };
 
   const handleDeleteTransaction = async (tx: Transaction) => {
-    if (!confirm('Remove this transaction and reverse balance?')) return;
+    if (!confirm('Remove this transaction record?')) return;
     
     await db.deleteTransaction(tx.id);
-    const delta = tx.type === 'income' ? -tx.amount : tx.amount;
-    const updatedPortfolio = { ...portfolio, value: portfolio.value + delta };
-    updatePortfolio(updatedPortfolio);
+    // Independent Tracking: No longer reversing portfolio balance here
     fetchTransactions();
   };
 
@@ -83,6 +77,20 @@ const Ledger: React.FC<LedgerProps> = ({ portfolio, onClose }) => {
     return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  const expenseCategories = [
+    TransactionCategory.FOOD,
+    TransactionCategory.RENT,
+    TransactionCategory.UTILITIES,
+    TransactionCategory.GROCERY,
+    TransactionCategory.ENTERTAINMENT,
+    TransactionCategory.OTHER
+  ];
+
+  const incomeCategories = [
+    TransactionCategory.SALARY,
+    TransactionCategory.OTHER
+  ];
+
   return (
     <div className="fixed inset-0 z-[100] bg-slate-50 dark:bg-[#020617] flex flex-col animate-in slide-in-from-right duration-300">
       {/* Header */}
@@ -98,7 +106,7 @@ const Ledger: React.FC<LedgerProps> = ({ portfolio, onClose }) => {
         </div>
         <div className="text-right">
           <p className={`text-xl font-black tabular-nums ${settings.privacyMode ? 'blur-sm select-none' : ''}`}>{formatValue(portfolio.value)}</p>
-          <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Current Balance</p>
+          <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Target Portfolio Balance</p>
         </div>
       </header>
 
@@ -165,14 +173,14 @@ const Ledger: React.FC<LedgerProps> = ({ portfolio, onClose }) => {
               <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
                 <button 
                   type="button"
-                  onClick={() => setFormData({...formData, type: 'expense'})}
+                  onClick={() => setFormData({...formData, type: 'expense', category: TransactionCategory.OTHER})}
                   className={`flex-1 py-3 rounded-xl font-black text-sm transition-all ${formData.type === 'expense' ? 'bg-white dark:bg-slate-700 text-rose-500 shadow-sm' : 'text-slate-400'}`}
                 >
                   Expense
                 </button>
                 <button 
                   type="button"
-                  onClick={() => setFormData({...formData, type: 'income'})}
+                  onClick={() => setFormData({...formData, type: 'income', category: TransactionCategory.OTHER})}
                   className={`flex-1 py-3 rounded-xl font-black text-sm transition-all ${formData.type === 'income' ? 'bg-white dark:bg-slate-700 text-emerald-500 shadow-sm' : 'text-slate-400'}`}
                 >
                   Income
@@ -203,7 +211,11 @@ const Ledger: React.FC<LedgerProps> = ({ portfolio, onClose }) => {
                     value={formData.category}
                     onChange={(e) => setFormData({...formData, category: e.target.value as TransactionCategory})}
                   >
-                    {Object.values(TransactionCategory).map(c => <option key={c} value={c}>{c}</option>)}
+                    {formData.type === 'expense' ? (
+                      expenseCategories.map(c => <option key={c} value={c}>{c}</option>)
+                    ) : (
+                      incomeCategories.map(c => <option key={c} value={c}>{c}</option>)
+                    )}
                   </select>
                 </div>
                 <div className="space-y-1">

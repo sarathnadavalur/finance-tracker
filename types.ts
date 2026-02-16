@@ -13,14 +13,15 @@ export enum Currency {
 }
 
 export enum TransactionCategory {
-  INCOME = 'Income',
-  SHOPPING = 'Shopping',
+  // Expense Categories
   FOOD = 'Food',
   RENT = 'Rent',
   UTILITIES = 'Utilities',
+  GROCERY = 'Grocery',
   ENTERTAINMENT = 'Entertainment',
-  INVESTMENT = 'Investment',
-  TRANSFER = 'Transfer',
+  // Income Categories
+  SALARY = 'Salary',
+  // Shared
   OTHER = 'Other'
 }
 

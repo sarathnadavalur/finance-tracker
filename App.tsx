@@ -9,7 +9,8 @@ import {
   Eye,
   EyeOff,
   Sparkles,
-  ShieldCheck
+  ShieldCheck,
+  History
 } from 'lucide-react';
 import { Portfolio, Currency, UserProfile, AppSettings, ExchangeRates } from './types';
 import { INITIAL_RATES } from './constants';
@@ -18,6 +19,7 @@ import Dashboard from './components/Dashboard';
 import Portfolios from './components/Portfolios';
 import Settings from './components/Settings';
 import Insights from './components/Insights';
+import Transactions from './components/Transactions';
 import AuthGateway from './components/AuthGateway';
 import UnlockScreen from './components/UnlockScreen';
 
@@ -39,7 +41,7 @@ interface AppContextType {
   reloadData: () => Promise<void>;
   shouldOpenProfile: boolean;
   setShouldOpenProfile: (val: boolean) => void;
-  setActiveTab: (tab: 'dashboard' | 'portfolios' | 'settings' | 'insights') => void;
+  setActiveTab: (tab: 'dashboard' | 'transactions' | 'portfolios' | 'settings' | 'insights') => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -54,7 +56,7 @@ const App: React.FC = () => {
   const [isReady, setIsReady] = useState(false);
   const [isAuth, setIsAuth] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'portfolios' | 'settings' | 'insights'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'portfolios' | 'settings' | 'insights'>('dashboard');
   const [shouldOpenProfile, setShouldOpenProfile] = useState(false);
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [baseCurrency, setBaseCurrency] = useState<Currency>(Currency.CAD);
@@ -295,8 +297,9 @@ const App: React.FC = () => {
             </div>
 
             <TabButton active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); if(navigator.vibrate) navigator.vibrate(5); }} icon={<LayoutDashboard size={22} />} label="Home" />
+            <TabButton active={activeTab === 'transactions'} onClick={() => { setActiveTab('transactions'); if(navigator.vibrate) navigator.vibrate(5); }} icon={<History size={22} />} label="Activity" />
             <TabButton active={activeTab === 'portfolios'} onClick={() => { setActiveTab('portfolios'); if(navigator.vibrate) navigator.vibrate(5); }} icon={<Wallet size={22} />} label="Wallets" />
-            <TabButton active={activeTab === 'insights'} onClick={() => { setActiveTab('insights'); if(navigator.vibrate) navigator.vibrate(5); }} icon={<Sparkles size={22} />} label="Insights" />
+            <TabButton active={activeTab === 'insights'} onClick={() => { setActiveTab('insights'); if(navigator.vibrate) navigator.vibrate(5); }} icon={<Sparkles size={22} />} label="AI Advisor" />
             <TabButton active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); if(navigator.vibrate) navigator.vibrate(5); }} icon={<SettingsIcon size={22} />} label="Settings" />
           </div>
         </nav>
@@ -304,6 +307,7 @@ const App: React.FC = () => {
         <main className="flex-1 overflow-y-auto pb-24 md:pb-6 scroll-smooth scroll-container no-scrollbar w-full">
           <div className="w-full p-4 md:p-6 animate-in fade-in slide-in-from-bottom-2 duration-500 flex flex-col items-stretch">
             {activeTab === 'dashboard' && <Dashboard />}
+            {activeTab === 'transactions' && <Transactions />}
             {activeTab === 'portfolios' && <Portfolios />}
             {activeTab === 'insights' && <Insights />}
             {activeTab === 'settings' && <Settings />}
