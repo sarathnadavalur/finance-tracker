@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
 import { 
   LayoutDashboard, 
@@ -51,6 +50,7 @@ interface AppContextType {
   setIsPortfolioModalOpen: (val: boolean) => void;
   newsCache: any[];
   setNewsCache: (news: any[]) => void;
+  isSyncing: boolean;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -82,8 +82,8 @@ const App: React.FC = () => {
   });
   const [rates, setRates] = useState<ExchangeRates>(INITIAL_RATES);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [isSyncing, setIsSyncing] = useState(false);
   
-  // News Session Cache
   const [newsCache, setNewsCache] = useState<any[]>([]);
 
   const backgroundTimeRef = useRef<number | null>(null);
@@ -177,28 +177,55 @@ const App: React.FC = () => {
   }, [settings, isReady]);
 
   const fetchRealRates = async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
     try {
-      const response = await fetch('https://open.er-api.com/v6/latest/USD');
-      const data = await response.json();
-      if (data && data.rates) {
-        const usdToCad = data.rates.CAD;
-        const usdToInr = data.rates.INR;
+      // Primary: Coinbase (High frequency updates, good uptime)
+      const response = await fetch('https://api.coinbase.com/v2/exchange-rates?currency=USD');
+      if (!response.ok) throw new Error('Primary API failed');
+      const json = await response.json();
+      
+      if (json && json.data && json.data.rates) {
+        const data = json.data.rates;
+        const usdToCad = parseFloat(data.CAD);
+        const usdToInr = parseFloat(data.INR);
+        
         const newRates: ExchangeRates = {
           USD: { USD: 1, CAD: usdToCad, INR: usdToInr },
           CAD: { USD: 1 / usdToCad, CAD: 1, INR: usdToInr / usdToCad },
           INR: { USD: 1 / usdToInr, CAD: usdToCad / usdToInr, INR: 1 }
         };
+        
         setRates(newRates);
         setLastUpdated(new Date());
       }
     } catch (error) {
-      console.error("Exchange Rate Sync Failed", error);
+      // Fallback: Open Exchange Rates (Very reliable CORS, updates roughly hourly)
+      try {
+        const fbResponse = await fetch('https://open.er-api.com/v6/latest/USD');
+        const fbJson = await fbResponse.json();
+        if (fbJson && fbJson.rates) {
+          const data = fbJson.rates;
+          const usdToCad = parseFloat(data.CAD);
+          const usdToInr = parseFloat(data.INR);
+          setRates({
+            USD: { USD: 1, CAD: usdToCad, INR: usdToInr },
+            CAD: { USD: 1 / usdToCad, CAD: 1, INR: usdToInr / usdToCad },
+            INR: { USD: 1 / usdToInr, CAD: usdToCad / usdToInr, INR: 1 }
+          });
+          setLastUpdated(new Date());
+        }
+      } catch (fbError) {
+        console.warn("Market Sync Failed - All endpoints unreachable", fbError);
+      }
+    } finally {
+      setIsSyncing(false);
     }
   };
 
   useEffect(() => {
     fetchRealRates();
-    const interval = setInterval(fetchRealRates, 300000);
+    const interval = setInterval(fetchRealRates, 5000); 
     return () => clearInterval(interval);
   }, []);
 
@@ -256,7 +283,8 @@ const App: React.FC = () => {
     setIsTxModalOpen,
     setIsPortfolioModalOpen,
     newsCache,
-    setNewsCache
+    setNewsCache,
+    isSyncing
   };
 
   return (
@@ -264,7 +292,6 @@ const App: React.FC = () => {
       <div className="h-full min-h-[100dvh] flex flex-col md:flex-row max-w-7xl mx-auto bg-slate-50 dark:bg-[#020617] transition-all duration-500 antialiased overflow-hidden w-full relative">
         {isLocked && <UnlockScreen profile={profile} onUnlock={() => setIsLocked(false)} />}
 
-        {/* Mobile Header - More Glossy */}
         <header className="md:hidden pt-4 px-5 pb-3 flex justify-between items-center shrink-0 bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl sticky top-0 z-40 w-full border-b border-white/20 dark:border-white/5">
           <div 
             className="flex items-center gap-3 cursor-pointer active:opacity-70 active:scale-95 transition-all flex-1"
@@ -298,7 +325,6 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        {/* Navigation - Modern Floating Pill Design for Mobile */}
         <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-lg bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border border-white/30 dark:border-white/10 md:relative md:w-64 md:left-0 md:translate-x-0 md:bottom-0 md:border-none md:bg-transparent z-50 rounded-[2rem] px-2 py-2 shadow-premium md:shadow-none transition-all duration-500 md:flex md:flex-col md:items-stretch overflow-hidden">
           <div className="flex md:flex-col justify-between items-center md:items-start md:p-6 gap-0.5 md:gap-1">
             <div className="hidden md:flex flex-col gap-5 mb-10 w-full">
@@ -323,23 +349,23 @@ const App: React.FC = () => {
                </div>
             </div>
 
-            <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={18} />} label="Home" />
-            <TabButton active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} icon={<History size={18} />} label="Activity" />
-            <TabButton active={activeTab === 'news'} onClick={() => setActiveTab('news')} icon={<Newspaper size={18} />} label="News" />
+            <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={18} />} label="Dashboard" />
             <TabButton active={activeTab === 'portfolios'} onClick={() => setActiveTab('portfolios')} icon={<Wallet size={18} />} label="Assets" />
+            <TabButton active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} icon={<History size={18} />} label="Activity" />
             <TabButton active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon={<Sparkles size={18} />} label="AI" />
-            <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<SettingsIcon size={18} />} label="Prefs" />
+            <TabButton active={activeTab === 'news'} onClick={() => setActiveTab('news')} icon={<Newspaper size={18} />} label="News" />
+            <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<SettingsIcon size={18} />} label="Settings" />
           </div>
         </nav>
 
         <main className="flex-1 overflow-y-auto pb-32 md:pb-8 scroll-smooth scroll-container no-scrollbar w-full">
           <div className="w-full px-4 pt-4 md:px-8 md:pt-8 animate-in fade-in slide-in-from-bottom-3 duration-700 flex flex-col items-stretch max-w-5xl mx-auto">
             {activeTab === 'dashboard' && <Dashboard />}
-            {activeTab === 'transactions' && <Transactions />}
             {activeTab === 'portfolios' && <Portfolios />}
+            {activeTab === 'transactions' && <Transactions />}
             {activeTab === 'insights' && <Insights />}
-            {activeTab === 'settings' && <Settings />}
             {activeTab === 'news' && <LatestNews />}
+            {activeTab === 'settings' && <Settings />}
           </div>
         </main>
 

@@ -1,26 +1,11 @@
-
 import React, { useMemo, useState, useEffect } from 'react';
 import { useApp } from '../App';
 import { Currency, PortfolioType, Portfolio } from '../types';
-import { Info, ChevronDown, Zap, Plus, Receipt, TrendingUp, TrendingDown, ArrowUpRight } from 'lucide-react';
+import { Info, ChevronDown, Zap, Plus, Receipt, TrendingUp, TrendingDown, ArrowUpRight, RefreshCcw, Clock, Activity } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
-  const { portfolios, baseCurrency, setBaseCurrency, rates, settings, setIsPortfolioModalOpen, setIsTxModalOpen } = useApp();
-  const [liveJitter, setLiveJitter] = useState<Record<string, number>>({});
-  const [ticker, setTicker] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTicker(t => t + 1);
-      const newJitter: Record<string, number> = {};
-      Object.values(Currency).forEach(curr => {
-        newJitter[curr] = (Math.random() - 0.5) * 0.0002;
-      });
-      setLiveJitter(newJitter);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
+  const { portfolios, baseCurrency, setBaseCurrency, rates, settings, setIsPortfolioModalOpen, setIsTxModalOpen, lastUpdated, isSyncing } = useApp();
+  
   const calculateRemainingEMI = (p: Portfolio) => {
     if (p.type !== PortfolioType.EMIS || !p.totalEmiValue || !p.monthlyEmiAmount || !p.emiStartDate) {
       return p.value;
@@ -63,7 +48,7 @@ const Dashboard: React.FC = () => {
       investmentsPercentage: ((investments / totalAssets) * 100).toFixed(0) + '%',
       savingsPercentage: ((savings / totalAssets) * 100).toFixed(0) + '%'
     };
-  }, [portfolios, baseCurrency, rates, ticker]);
+  }, [portfolios, baseCurrency, rates]);
 
   const formatCurrency = (val: number) => {
     const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: baseCurrency, maximumFractionDigits: 0 }).format(val);
@@ -71,6 +56,8 @@ const Dashboard: React.FC = () => {
   };
 
   const otherCurrencies = Object.values(Currency).filter(c => c !== baseCurrency);
+
+  const formattedLastUpdated = lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   return (
     <div className="w-full space-y-7 flex flex-col items-stretch pb-10">
@@ -94,23 +81,27 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Live Ticker Bar - Glassier */}
-        <div className="w-full bg-white/40 dark:bg-slate-900/30 backdrop-blur-xl rounded-3xl border border-white/40 dark:border-white/5 p-4 flex items-center gap-5 overflow-hidden shadow-premium transition-all">
-          <div className="flex items-center gap-2 shrink-0 pr-5 border-r border-slate-200 dark:border-white/10">
-            <Zap size={14} className="text-blue-500 fill-blue-500 animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-tighter text-blue-600 dark:text-blue-400">Market</span>
+        {/* Real-time Ticker Bar */}
+        <div className="w-full bg-white/40 dark:bg-slate-900/30 backdrop-blur-xl rounded-3xl border border-white/40 dark:border-white/5 p-4 flex flex-col gap-2 shadow-premium transition-all">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <Activity size={12} className={`text-blue-500 ${isSyncing ? 'animate-bounce' : 'animate-pulse'}`} />
+              <span className="text-[10px] font-black uppercase tracking-tighter text-blue-600 dark:text-blue-400">High-Frequency Market Sync</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/10">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+              <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">{formattedLastUpdated}</span>
+            </div>
           </div>
           
-          <div className="flex flex-1 items-center gap-8 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-6 overflow-x-auto no-scrollbar py-1">
             {otherCurrencies.map(curr => {
-              const baseRate = rates[baseCurrency][curr];
-              const drift = liveJitter[curr] || 0;
-              const currentVal = baseRate + (baseRate * drift);
+              const currentRate = rates[baseCurrency][curr];
               return (
-                <div key={curr} className="flex items-center gap-2.5 shrink-0">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{baseCurrency}/{curr}</span>
-                  <span className="text-[11px] font-black text-slate-900 dark:text-white tabular-nums tracking-tighter">
-                    {currentVal.toFixed(4)}
+                <div key={curr} className="flex items-center gap-3 shrink-0 bg-white/50 dark:bg-slate-800/50 px-4 py-2.5 rounded-2xl border border-slate-100 dark:border-white/5 transition-colors">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{baseCurrency}/{curr}</span>
+                  <span className={`text-[13px] font-black text-slate-900 dark:text-white tabular-nums tracking-tighter ${isSyncing ? 'opacity-50' : 'opacity-100'}`}>
+                    {currentRate.toFixed(4)}
                   </span>
                 </div>
               );
@@ -133,14 +124,10 @@ const Dashboard: React.FC = () => {
             <h2 className={`text-4xl md:text-6xl font-black tracking-tighter tabular-nums transition-all duration-500 ${settings.privacyMode ? 'blur-md opacity-40' : 'group-hover:translate-x-1'}`}>
               {formatCurrency(totals.netValue)}
             </h2>
-            <div className="mt-6 flex items-center gap-3 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-glow animate-pulse"></div>
-              <span className="text-[9px] font-black uppercase tracking-widest text-white/80">Real-time sync active</span>
-            </div>
           </div>
         </div>
 
-        {/* Quick Actions - Floating Pill Style Buttons */}
+        {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-4">
           <button 
             onClick={() => setIsPortfolioModalOpen(true)}
@@ -159,7 +146,7 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Asset Breakdown - More Stylish Table */}
+      {/* Distribution Breakdown */}
       <div className="bg-white/60 dark:bg-slate-900/40 rounded-[2.5rem] border border-slate-100 dark:border-white/5 p-8 shadow-premium backdrop-blur-md">
         <div className="flex items-center justify-between mb-8">
           <div className="flex flex-col">
@@ -174,7 +161,7 @@ const Dashboard: React.FC = () => {
         <div className="space-y-1">
           <TableRows label="Investments" amount={totals.investments} percentage={totals.investmentsPercentage} color="bg-blue-500" currency={baseCurrency} isPrivate={settings.privacyMode} />
           <TableRows label="Savings" amount={totals.savings} percentage={totals.savingsPercentage} color="bg-emerald-500" currency={baseCurrency} isPrivate={settings.privacyMode} />
-          <TableRows label="Liabilities" amount={totals.debt + totals.emiTotal} percentage="N/A" color="bg-rose-500" currency={baseCurrency} isPrivate={settings.privacyMode} />
+          <TableRows label="Liabilities" amount={totals.debt + totals.emiTotal} percentage="Owed" color="bg-rose-500" currency={baseCurrency} isPrivate={settings.privacyMode} />
         </div>
       </div>
     </div>
@@ -187,7 +174,7 @@ const TableRows: React.FC<{ label: string; amount: number; percentage: string; c
       <div className={`w-3 h-3 rounded-full ${color} shadow-glow shadow-${color.split('-')[1]}-500/20`}></div>
       <div className="flex flex-col">
         <span className="font-extrabold text-[15px] text-slate-900 dark:text-slate-100">{label}</span>
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{percentage !== 'N/A' ? percentage : 'Owed'}</span>
+        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{percentage}</span>
       </div>
     </div>
     <div className="flex flex-col items-end">
