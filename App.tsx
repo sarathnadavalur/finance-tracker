@@ -22,6 +22,8 @@ import Insights from './components/Insights';
 import Transactions from './components/Transactions';
 import AuthGateway from './components/AuthGateway';
 import UnlockScreen from './components/UnlockScreen';
+import PortfolioForm from './components/PortfolioForm';
+import { TransactionModal } from './components/Transactions';
 
 interface AppContextType {
   portfolios: Portfolio[];
@@ -42,6 +44,8 @@ interface AppContextType {
   shouldOpenProfile: boolean;
   setShouldOpenProfile: (val: boolean) => void;
   setActiveTab: (tab: 'dashboard' | 'transactions' | 'portfolios' | 'settings' | 'insights') => void;
+  setIsTxModalOpen: (val: boolean) => void;
+  setIsPortfolioModalOpen: (val: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -58,6 +62,9 @@ const App: React.FC = () => {
   const [isLocked, setIsLocked] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'portfolios' | 'settings' | 'insights'>('dashboard');
   const [shouldOpenProfile, setShouldOpenProfile] = useState(false);
+  const [isTxModalOpen, setIsTxModalOpen] = useState(false);
+  const [isPortfolioModalOpen, setIsPortfolioModalOpen] = useState(false);
+  
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [baseCurrency, setBaseCurrency] = useState<Currency>(Currency.CAD);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -142,7 +149,6 @@ const App: React.FC = () => {
   useEffect(() => {
     if (isReady) db.saveSettings(settings);
     
-    // Set root font size for rem-based scaling
     document.documentElement.style.fontSize = `${settings.fontSize}px`;
     
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
@@ -231,7 +237,9 @@ const App: React.FC = () => {
     reloadData,
     shouldOpenProfile,
     setShouldOpenProfile,
-    setActiveTab
+    setActiveTab,
+    setIsTxModalOpen,
+    setIsPortfolioModalOpen
   };
 
   return (
@@ -313,6 +321,17 @@ const App: React.FC = () => {
             {activeTab === 'settings' && <Settings />}
           </div>
         </main>
+
+        {isPortfolioModalOpen && (
+          <PortfolioForm onClose={() => setIsPortfolioModalOpen(false)} />
+        )}
+
+        {isTxModalOpen && (
+          <TransactionModal 
+            onClose={() => setIsTxModalOpen(false)} 
+            onSuccess={() => { reloadData(); setIsTxModalOpen(false); }}
+          />
+        )}
       </div>
     </AppContext.Provider>
   );

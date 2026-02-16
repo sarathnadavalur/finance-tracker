@@ -2,14 +2,13 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useApp } from '../App';
 import { Currency, PortfolioType, Portfolio } from '../types';
-import { Info, ChevronDown, Zap } from 'lucide-react';
+import { Info, ChevronDown, Zap, Plus, Receipt } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
-  const { portfolios, baseCurrency, setBaseCurrency, rates, settings } = useApp();
+  const { portfolios, baseCurrency, setBaseCurrency, rates, settings, setIsPortfolioModalOpen, setIsTxModalOpen } = useApp();
   const [liveJitter, setLiveJitter] = useState<Record<string, number>>({});
   const [ticker, setTicker] = useState(0);
 
-  // Live Market Simulation (Updates every second)
   useEffect(() => {
     const interval = setInterval(() => {
       setTicker(t => t + 1);
@@ -75,7 +74,6 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="w-full space-y-5 flex flex-col items-stretch">
-      {/* Top Header & Minimalist FX Ticker */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-black tracking-tighter text-slate-900 dark:text-white">Overview</h1>
@@ -93,7 +91,6 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Minimal FX Ticker */}
         <div className="w-full bg-white dark:bg-slate-900/30 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-white/5 p-3 flex items-center gap-4 overflow-hidden shadow-sm">
           <div className="flex items-center gap-1.5 shrink-0 pr-4 border-r border-slate-100 dark:border-white/5">
             <Zap size={14} className="text-blue-500 fill-blue-500 animate-pulse" />
@@ -118,18 +115,35 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Net Worth Card - py-8 to py-10 (mobile), py-12 to py-14 (desktop) is roughly +20% breadth */}
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-[#0f172a] py-10 px-7 md:py-14 md:px-10 text-white shadow-xl border border-white/5 w-full">
-        <div className="absolute top-0 right-0 w-24 h-24 md:w-48 md:h-48 bg-blue-600/20 rounded-full blur-[40px] md:blur-[80px] -mr-12 -mt-12 animate-float"></div>
-        <div className="relative z-10 flex flex-col items-start gap-1">
-          <p className="text-slate-400 font-bold tracking-[0.12em] uppercase text-[10px] md:text-xs">Net Worth</p>
-          <h2 className={`text-4xl md:text-6xl font-black tracking-tighter tabular-nums transition-all duration-300 ${settings.privacyMode ? 'blur-sm opacity-50' : ''}`}>
-            {formatCurrency(totals.netValue)}
-          </h2>
+      <div className="flex flex-col gap-3">
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-[#0f172a] py-8 px-7 md:py-10 md:px-10 text-white shadow-xl border border-white/5 w-full">
+          <div className="absolute top-0 right-0 w-24 h-24 md:w-48 md:h-48 bg-blue-600/20 rounded-full blur-[40px] md:blur-[80px] -mr-12 -mt-12 animate-float"></div>
+          <div className="relative z-10 flex flex-col items-start gap-1">
+            <p className="text-slate-400 font-bold tracking-[0.12em] uppercase text-[10px] md:text-xs">Net Worth</p>
+            <h2 className={`text-4xl md:text-5xl font-black tracking-tighter tabular-nums transition-all duration-300 ${settings.privacyMode ? 'blur-sm opacity-50' : ''}`}>
+              {formatCurrency(totals.netValue)}
+            </h2>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button 
+            onClick={() => setIsPortfolioModalOpen(true)}
+            className="flex items-center justify-center gap-2 bg-blue-600 text-white p-4 rounded-3xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+          >
+            <Plus size={16} />
+            <span>Add Portfolio</span>
+          </button>
+          <button 
+            onClick={() => setIsTxModalOpen(true)}
+            className="flex items-center justify-center gap-2 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 p-4 rounded-3xl font-black text-xs uppercase tracking-widest shadow-sm active:scale-95 transition-all"
+          >
+            <Receipt size={16} className="text-blue-500" />
+            <span>Add Transaction</span>
+          </button>
         </div>
       </div>
 
-      {/* Asset Table */}
       <div className="bg-white dark:bg-slate-900/40 rounded-[2rem] border border-slate-200 dark:border-white/5 p-6 shadow-sm backdrop-blur-sm pb-8">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Assets</h3>

@@ -20,17 +20,8 @@ import {
   Loader2
 } from 'lucide-react';
 
-const Transactions: React.FC = () => {
-  const { portfolios, baseCurrency, settings } = useApp();
-  const [subTab, setSubTab] = useState<'history' | 'insights'>('history');
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // Filter state for Insights
-  const [timeRange, setTimeRange] = useState<'7d' | '1m' | '1y' | 'custom'>('1m');
-  const [customRange, setCustomRange] = useState({ start: '', end: '' });
-
+export const TransactionModal: React.FC<{ onClose: () => void; onSuccess: () => void }> = ({ onClose, onSuccess }) => {
+  const { portfolios, baseCurrency } = useApp();
   const [formData, setFormData] = useState({
     portfolioId: portfolios[0]?.id || '',
     amount: '',
@@ -38,17 +29,6 @@ const Transactions: React.FC = () => {
     category: TransactionCategory.OTHER,
     note: ''
   });
-
-  const fetchTransactions = async () => {
-    setIsLoading(true);
-    const data = await db.getAllTransactions();
-    setTransactions(data.sort((a, b) => b.date - a.date));
-    setIsLoading(false);
-  };
-
-  useEffect(() => {
-    fetchTransactions();
-  }, []);
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,20 +48,146 @@ const Transactions: React.FC = () => {
     };
 
     await db.saveTransaction(newTx);
-    
-    // Independent Tracking: Transactions no longer modify portfolio balance
-
-    setFormData({ 
-      portfolioId: portfolios[0]?.id || '', 
-      amount: '', 
-      type: 'expense', 
-      category: TransactionCategory.OTHER, 
-      note: '' 
-    });
-    setShowAddForm(false);
-    fetchTransactions();
+    onSuccess();
     if (navigator.vibrate) navigator.vibrate(10);
   };
+
+  const expenseCategories = [
+    TransactionCategory.FOOD, TransactionCategory.RENT, TransactionCategory.UTILITIES,
+    TransactionCategory.GROCERY, TransactionCategory.ENTERTAINMENT, TransactionCategory.OTHER
+  ];
+
+  const incomeCategories = [TransactionCategory.SALARY, TransactionCategory.OTHER];
+
+  const labelStyle = "text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 block ml-1";
+  const inputStyle = "w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-white/5 rounded-2xl px-5 py-3.5 font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-sm";
+
+  return (
+    <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-md flex items-end sm:items-center sm:justify-center sm:p-4 animate-in fade-in duration-300">
+      <div className="w-full sm:max-w-md bg-white dark:bg-slate-900 rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Quick Entry</h3>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+            <X size={24} className="text-slate-900 dark:text-white" />
+          </button>
+        </div>
+
+        <form onSubmit={handleAddTransaction} className="space-y-4">
+          <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
+            <button 
+              type="button"
+              onClick={() => setFormData({...formData, type: 'expense', category: TransactionCategory.OTHER})}
+              className={`flex-1 py-2.5 rounded-xl font-black text-xs transition-all ${formData.type === 'expense' ? 'bg-white dark:bg-slate-700 text-rose-500 shadow-sm' : 'text-slate-400'}`}
+            >
+              Expense
+            </button>
+            <button 
+              type="button"
+              onClick={() => setFormData({...formData, type: 'income', category: TransactionCategory.OTHER})}
+              className={`flex-1 py-2.5 rounded-xl font-black text-xs transition-all ${formData.type === 'income' ? 'bg-white dark:bg-slate-700 text-emerald-500 shadow-sm' : 'text-slate-400'}`}
+            >
+              Income
+            </button>
+          </div>
+
+          <div className="space-y-1">
+            <label className={labelStyle}>Target Wallet</label>
+            <select 
+              required
+              className={inputStyle + " appearance-none cursor-pointer"}
+              value={formData.portfolioId}
+              onChange={(e) => setFormData({...formData, portfolioId: e.target.value})}
+            >
+              {portfolios.map(p => <option key={p.id} value={p.id}>{p.name} ({p.currency})</option>)}
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className={labelStyle}>Amount</label>
+            <input 
+              required
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              className={inputStyle + " text-lg"}
+              value={formData.amount}
+              onChange={(e) => setFormData({...formData, amount: e.target.value})}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className={labelStyle}>Category</label>
+              <select 
+                className={inputStyle + " appearance-none"}
+                value={formData.category}
+                onChange={(e) => setFormData({...formData, category: e.target.value as TransactionCategory})}
+              >
+                {formData.type === 'expense' ? expenseCategories.map(c => <option key={c} value={c}>{c}</option>) : incomeCategories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className={labelStyle}>Reference</label>
+              <input 
+                type="text"
+                placeholder="Brief note..."
+                className={inputStyle}
+                value={formData.note}
+                onChange={(e) => setFormData({...formData, note: e.target.value})}
+              />
+            </div>
+          </div>
+
+          <button 
+            type="submit"
+            className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl shadow-blue-500/30 active:scale-95 transition-all text-sm uppercase tracking-widest mt-2"
+          >
+            Post Entry
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const Transactions: React.FC = () => {
+  const { portfolios, baseCurrency, settings, setIsTxModalOpen } = useApp();
+  const [subTab, setSubTab] = useState<'history' | 'insights'>('history');
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const [timeRange, setTimeRange] = useState<'7d' | '1m' | '1y' | 'custom'>('1m');
+  const [customRange, setCustomRange] = useState({ start: '', end: '' });
+
+  const fetchTransactions = async () => {
+    setIsLoading(true);
+    const data = await db.getAllTransactions();
+    setTransactions(data.sort((a, b) => b.date - a.date));
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
+
+  const filteredHistory = useMemo(() => {
+    if (!searchQuery.trim()) return transactions;
+    const query = searchQuery.toLowerCase();
+    
+    return transactions.filter(tx => {
+      const p = portfolios.find(port => port.id === tx.portfolioId);
+      const portfolioName = p ? p.name.toLowerCase() : '';
+      const note = (tx.note || '').toLowerCase();
+      const category = tx.category.toLowerCase();
+      const amountStr = tx.amount.toString();
+      
+      return note.includes(query) || 
+             category.includes(query) || 
+             portfolioName.includes(query) ||
+             amountStr.includes(query);
+    });
+  }, [transactions, searchQuery, portfolios]);
 
   const filteredTransactions = useMemo(() => {
     const now = Date.now();
@@ -101,7 +207,6 @@ const Transactions: React.FC = () => {
   }, [transactions, timeRange, customRange]);
 
   const insightsData = useMemo(() => {
-    // Multi-currency Grouping: { "Category_Currency": { total, count, category, currency } }
     const groups: Record<string, { total: number; count: number; type: 'income' | 'expense'; category: string; currency: string }> = {};
     
     filteredTransactions.forEach(tx => {
@@ -132,20 +237,6 @@ const Transactions: React.FC = () => {
     return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const expenseCategories = [
-    TransactionCategory.FOOD,
-    TransactionCategory.RENT,
-    TransactionCategory.UTILITIES,
-    TransactionCategory.GROCERY,
-    TransactionCategory.ENTERTAINMENT,
-    TransactionCategory.OTHER
-  ];
-
-  const incomeCategories = [
-    TransactionCategory.SALARY,
-    TransactionCategory.OTHER
-  ];
-
   return (
     <div className="w-full flex flex-col min-h-full">
       <div className="pt-6 pb-4 px-1 flex flex-col gap-4">
@@ -155,14 +246,13 @@ const Transactions: React.FC = () => {
             <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mt-0.5">Stream of Transactions</p>
           </div>
           <button 
-            onClick={() => setShowAddForm(true)}
+            onClick={() => setIsTxModalOpen(true)}
             className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30 active:scale-90 transition-transform"
           >
             <Plus size={20} />
           </button>
         </div>
 
-        {/* Sub-Tabs Navigation */}
         <div className="flex p-1 bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-white/5 rounded-2xl shadow-sm">
           <button 
             onClick={() => setSubTab('history')}
@@ -181,51 +271,73 @@ const Transactions: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 mt-4">
+      <div className="flex-1 mt-2">
         {subTab === 'history' ? (
-          <div className="space-y-3 pb-20">
+          <div className="space-y-4 pb-20">
+            <div className="sticky top-0 z-20 bg-slate-50/80 dark:bg-[#020617]/80 backdrop-blur-md py-3 px-1">
+              <div className="relative group">
+                <input 
+                  type="text"
+                  placeholder="Search notes, category or amount..."
+                  className="w-full bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 rounded-2xl py-3.5 pl-12 pr-6 font-bold text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <Search size={18} className={`absolute left-5 top-1/2 -translate-y-1/2 transition-colors ${searchQuery ? 'text-blue-500' : 'text-slate-400'}`} />
+                {searchQuery && (
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <X size={14} className="text-slate-400" />
+                  </button>
+                )}
+              </div>
+            </div>
+
             {isLoading ? (
                <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-3">
                   <Loader2 size={32} className="animate-spin" />
                   <span className="text-xs font-bold uppercase tracking-widest">Loading Records...</span>
                </div>
-            ) : transactions.length === 0 ? (
+            ) : filteredHistory.length === 0 ? (
               <div className="py-20 flex flex-col items-center justify-center text-slate-400/40 gap-4">
                 <div className="w-16 h-16 rounded-full border-4 border-dashed border-current flex items-center justify-center">
                    <CreditCard size={32} />
                 </div>
-                <p className="text-sm font-bold">No activity found yet</p>
+                <p className="text-sm font-bold">{searchQuery ? 'No matching records' : 'No activity found yet'}</p>
               </div>
             ) : (
-              transactions.map(tx => {
-                const p = portfolios.find(p => p.id === tx.portfolioId);
-                return (
-                  <div key={tx.id} className="bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-4 rounded-3xl flex items-center justify-between group shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${tx.type === 'income' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                        {tx.type === 'income' ? <ArrowDownLeft size={22} /> : <ArrowUpRight size={22} />}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-black text-slate-900 dark:text-white text-sm tracking-tight">{tx.category}</span>
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{formatDate(tx.date)}</span>
+              <div className="space-y-3 px-1">
+                {filteredHistory.map(tx => {
+                  const p = portfolios.find(p => p.id === tx.portfolioId);
+                  return (
+                    <div key={tx.id} className="bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-4 rounded-3xl flex items-center justify-between group shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${tx.type === 'income' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                          {tx.type === 'income' ? <ArrowDownLeft size={22} /> : <ArrowUpRight size={22} />}
                         </div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-bold tracking-tight line-clamp-1">{p?.name || 'Unknown Portfolio'}</p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-slate-900 dark:text-white text-sm tracking-tight truncate">{tx.category}</span>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter shrink-0">{formatDate(tx.date)}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-bold tracking-tight line-clamp-1 italic">{tx.note || p?.name || 'Vantage Record'}</p>
+                        </div>
+                      </div>
+                      <div className="text-right pl-4">
+                        <span className={`font-black tabular-nums text-sm ${tx.type === 'income' ? 'text-emerald-500' : 'text-slate-900 dark:text-white'} ${settings.privacyMode ? 'blur-sm' : ''}`}>
+                          {tx.type === 'income' ? '+' : '-'}{formatValue(tx.amount, p?.currency)}
+                        </span>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className={`font-black tabular-nums text-sm ${tx.type === 'income' ? 'text-emerald-500' : 'text-slate-900 dark:text-white'} ${settings.privacyMode ? 'blur-sm' : ''}`}>
-                        {tx.type === 'income' ? '+' : '-'}{formatValue(tx.amount, p?.currency)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
             )}
           </div>
         ) : (
           <div className="space-y-6 pb-20 animate-in fade-in duration-300">
-            {/* Time Range Selector */}
             <div className="flex flex-wrap gap-2">
               {[
                 { id: '7d', label: '7 Days' },
@@ -260,7 +372,6 @@ const Transactions: React.FC = () => {
               </div>
             )}
 
-            {/* Accumulated Totals grouped by Category & Currency */}
             <div className="grid gap-4">
               {insightsData.length === 0 ? (
                 <div className="py-20 flex flex-col items-center justify-center opacity-30 text-slate-400">
@@ -292,100 +403,6 @@ const Transactions: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Add Transaction Form Modal */}
-      {showAddForm && (
-        <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-md flex items-end animate-in fade-in duration-300">
-          <div className="w-full bg-white dark:bg-slate-900 rounded-t-[3rem] p-8 animate-in slide-in-from-bottom duration-300 max-h-[90vh] overflow-y-auto no-scrollbar">
-            <div className="flex justify-between items-center mb-8">
-              <h3 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Quick Entry</h3>
-              <button onClick={() => setShowAddForm(false)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                <X size={24} className="text-slate-900 dark:text-white" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddTransaction} className="space-y-6">
-              <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
-                <button 
-                  type="button"
-                  onClick={() => setFormData({...formData, type: 'expense', category: TransactionCategory.OTHER})}
-                  className={`flex-1 py-3 rounded-xl font-black text-sm transition-all ${formData.type === 'expense' ? 'bg-white dark:bg-slate-700 text-rose-500 shadow-sm' : 'text-slate-400'}`}
-                >
-                  Expense
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => setFormData({...formData, type: 'income', category: TransactionCategory.OTHER})}
-                  className={`flex-1 py-3 rounded-xl font-black text-sm transition-all ${formData.type === 'income' ? 'bg-white dark:bg-slate-700 text-emerald-500 shadow-sm' : 'text-slate-400'}`}
-                >
-                  Income
-                </button>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block ml-2">Select Portfolio</label>
-                <select 
-                  required
-                  className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 font-bold text-slate-900 dark:text-white outline-none appearance-none"
-                  value={formData.portfolioId}
-                  onChange={(e) => setFormData({...formData, portfolioId: e.target.value})}
-                >
-                  {portfolios.map(p => <option key={p.id} value={p.id}>{p.name} ({p.currency})</option>)}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block ml-2">Amount</label>
-                <div className="relative">
-                   <input 
-                    required
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-6 py-5 text-3xl font-black text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block ml-2">Category</label>
-                  <select 
-                    className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 font-bold text-slate-900 dark:text-white outline-none appearance-none"
-                    value={formData.category}
-                    onChange={(e) => setFormData({...formData, category: e.target.value as TransactionCategory})}
-                  >
-                    {formData.type === 'expense' ? (
-                      expenseCategories.map(c => <option key={c} value={c}>{c}</option>)
-                    ) : (
-                      incomeCategories.map(c => <option key={c} value={c}>{c}</option>)
-                    )}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block ml-2">Notes</label>
-                  <input 
-                    type="text"
-                    placeholder="Reference..."
-                    className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 font-bold text-slate-900 dark:text-white outline-none placeholder:text-slate-400"
-                    value={formData.note}
-                    onChange={(e) => setFormData({...formData, note: e.target.value})}
-                  />
-                </div>
-              </div>
-
-              <button 
-                type="submit"
-                className="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-xl shadow-blue-500/30 active:scale-95 transition-all text-lg"
-              >
-                Post Entry
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

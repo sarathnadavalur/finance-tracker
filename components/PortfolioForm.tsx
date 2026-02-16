@@ -39,7 +39,6 @@ const PortfolioForm: React.FC<PortfolioFormProps> = ({ onClose, editingPortfolio
 
   const isEMI = formData.type === PortfolioType.EMIS;
 
-  // Refined EMI Calculation Logic
   useEffect(() => {
     if (isEMI && formData.totalEmiValue && formData.monthlyEmiAmount && formData.emiStartDate) {
       const total = parseFloat(formData.totalEmiValue);
@@ -50,9 +49,6 @@ const PortfolioForm: React.FC<PortfolioFormProps> = ({ onClose, editingPortfolio
       
       const pDay = parseInt(formData.paymentDate) || 1;
       
-      // Calculate actual first payment date
-      // If payment day is >= processed day, it happens in the same month
-      // Otherwise, it starts next month
       let firstPaymentDate;
       if (pDay >= d) {
         firstPaymentDate = new Date(y, m - 1, pDay);
@@ -61,7 +57,6 @@ const PortfolioForm: React.FC<PortfolioFormProps> = ({ onClose, editingPortfolio
       }
       
       const today = new Date();
-      // Set to midnight for clean comparison
       const todayStripped = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       const firstPaymentStripped = new Date(firstPaymentDate.getFullYear(), firstPaymentDate.getMonth(), firstPaymentDate.getDate());
 
@@ -69,10 +64,7 @@ const PortfolioForm: React.FC<PortfolioFormProps> = ({ onClose, editingPortfolio
         let paymentsMade = 0;
         
         if (todayStripped >= firstPaymentStripped) {
-          // Months between first payment and now
           const diffMonths = (todayStripped.getFullYear() - firstPaymentStripped.getFullYear()) * 12 + (todayStripped.getMonth() - firstPaymentStripped.getMonth());
-          
-          // If we have reached the payment day of the current month
           if (todayStripped.getDate() >= pDay) {
             paymentsMade = diffMonths + 1;
           } else {
@@ -88,7 +80,6 @@ const PortfolioForm: React.FC<PortfolioFormProps> = ({ onClose, editingPortfolio
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Fix: Added missing required property 'updatedAt' to satisfy the Portfolio interface.
     const portfolioData: Portfolio = {
       id: editingPortfolio ? editingPortfolio.id : Date.now().toString(),
       name: formData.name,
@@ -110,38 +101,38 @@ const PortfolioForm: React.FC<PortfolioFormProps> = ({ onClose, editingPortfolio
     onClose();
   };
 
-  const labelStyle = "text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-2 block";
-  const inputStyle = "w-full bg-[#f8fafc] dark:bg-slate-800/50 border-none rounded-2xl px-6 py-5 font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all placeholder:text-slate-300";
+  const labelStyle = "text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5 block ml-1";
+  const inputStyle = "w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-white/5 rounded-2xl px-5 py-3.5 font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all placeholder:text-slate-300 text-sm";
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 duration-300">
-        <div className="p-8 md:p-12">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">
-              {editingPortfolio ? 'Edit Portfolio' : 'Add Portfolio'}
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="p-6 md:p-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+              {editingPortfolio ? 'Edit Portfolio' : 'New Portfolio'}
             </h2>
             <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-              <X size={28} className="text-slate-900 dark:text-white" />
+              <X size={24} className="text-slate-900 dark:text-white" />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">
               <label className={labelStyle}>Portfolio Name</label>
               <input 
                 required
                 type="text"
-                placeholder="Item name"
+                placeholder="Asset or Liability name"
                 className={inputStyle}
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className={labelStyle}>Type</label>
+                <label className={labelStyle}>Category</label>
                 <select 
                   className={inputStyle + " appearance-none cursor-pointer"}
                   value={formData.type}
@@ -164,95 +155,57 @@ const PortfolioForm: React.FC<PortfolioFormProps> = ({ onClose, editingPortfolio
 
             <div className="space-y-1">
               <label className={labelStyle}>
-                {isEMI ? 'Current Owed Amount' : 'Current Value'}
+                {isEMI ? 'Current Owed Amount' : 'Available Balance'}
               </label>
               <input 
                 required
                 type="number"
                 step="0.01"
                 readOnly={isEMI}
-                className={`${inputStyle} ${isEMI ? 'text-blue-600 dark:text-blue-400' : ''}`}
+                className={`${inputStyle} ${isEMI ? 'text-blue-600 dark:text-blue-400 bg-blue-50/20' : ''}`}
                 value={formData.value}
                 onChange={(e) => setFormData({...formData, value: e.target.value})}
               />
-              {isEMI && (
-                <p className="text-[10px] font-bold text-blue-500/80 mt-2 uppercase tracking-widest">
-                  Calculated Automatically
-                </p>
-              )}
             </div>
 
             {isEMI && (
-              <div className="space-y-6 pt-6 mt-4 border-t border-slate-100 dark:border-white/5 animate-in slide-in-from-top-4 duration-500">
-                <div className="flex items-center gap-2 text-blue-600 mb-2">
-                  <Info size={16} />
-                  <span className="text-[11px] font-black uppercase tracking-widest">EMI Details</span>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-slate-100 dark:border-white/5 space-y-4 animate-in slide-in-from-top-2 duration-300">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className={labelStyle}>Total Loan Value</label>
-                    <input 
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      className={inputStyle}
-                      value={formData.totalEmiValue}
-                      onChange={(e) => setFormData({...formData, totalEmiValue: e.target.value})}
-                    />
+                    <label className={labelStyle}>Principal</label>
+                    <input type="number" step="0.01" placeholder="0.00" className={inputStyle} value={formData.totalEmiValue} onChange={(e) => setFormData({...formData, totalEmiValue: e.target.value})} />
                   </div>
                   <div className="space-y-1">
                     <label className={labelStyle}>Monthly EMI</label>
-                    <input 
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      className={inputStyle}
-                      value={formData.monthlyEmiAmount}
-                      onChange={(e) => setFormData({...formData, monthlyEmiAmount: e.target.value})}
-                    />
+                    <input type="number" step="0.01" placeholder="0.00" className={inputStyle} value={formData.monthlyEmiAmount} onChange={(e) => setFormData({...formData, monthlyEmiAmount: e.target.value})} />
                   </div>
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className={labelStyle}>Start Date</label>
-                    <input 
-                      type="date"
-                      className={inputStyle}
-                      value={formData.emiStartDate}
-                      onChange={(e) => setFormData({...formData, emiStartDate: e.target.value})}
-                    />
+                    <input type="date" className={inputStyle} value={formData.emiStartDate} onChange={(e) => setFormData({...formData, emiStartDate: e.target.value})} />
                   </div>
                   <div className="space-y-1">
-                    <label className={labelStyle}>Payment Date</label>
-                    <input 
-                      type="number"
-                      min="1"
-                      max="31"
-                      placeholder="1"
-                      className={inputStyle}
-                      value={formData.paymentDate}
-                      onChange={(e) => setFormData({...formData, paymentDate: e.target.value})}
-                    />
+                    <label className={labelStyle}>Bill Date</label>
+                    <input type="number" min="1" max="31" placeholder="1" className={inputStyle} value={formData.paymentDate} onChange={(e) => setFormData({...formData, paymentDate: e.target.value})} />
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="flex gap-4 pt-8">
+            <div className="flex gap-3 pt-4">
               <button 
                 type="button" 
                 onClick={onClose}
-                className="flex-1 px-8 py-5 rounded-[1.5rem] font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-lg"
+                className="flex-1 px-6 py-4 rounded-2xl font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-all text-sm"
               >
                 Cancel
               </button>
               <button 
                 type="submit"
-                className="flex-1 px-8 py-5 rounded-[1.5rem] font-bold bg-blue-600 text-white shadow-xl shadow-blue-500/20 hover:bg-blue-700 active:scale-[0.98] transition-all text-lg"
+                className="flex-1 px-6 py-4 rounded-2xl font-bold bg-blue-600 text-white shadow-lg active:scale-[0.98] transition-all text-sm"
               >
-                Save
+                {editingPortfolio ? 'Update' : 'Create'}
               </button>
             </div>
           </form>
