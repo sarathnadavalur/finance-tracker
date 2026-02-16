@@ -35,7 +35,7 @@ const Insights: React.FC = () => {
 
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const model = 'gemini-3-flash-preview';
+      const model = settings.selectedModel || 'gemini-3-flash-preview';
 
       const createPortfolioTool: FunctionDeclaration = {
         name: 'createPortfolio',
@@ -141,7 +141,6 @@ const Insights: React.FC = () => {
     { label: 'Debt Strategy', icon: <ShieldCheck size={14} /> }
   ];
 
-  // Enhanced Markdown-lite beautification
   const formatText = (text: string) => {
     const parts = text.split(/(\*\*.*?\*\*)/g);
     return parts.map((part, i) => {

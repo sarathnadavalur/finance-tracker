@@ -7,7 +7,8 @@ import {
   Download, Upload, RefreshCcw, 
   Fingerprint, ChevronRight, X, 
   Mail, LogOut, Loader2, FileJson,
-  Database, Type
+  Database, Type, Activity,
+  Cpu
 } from 'lucide-react';
 import { UserProfile, Portfolio, Transaction, AppSettings } from '../types';
 
@@ -211,7 +212,22 @@ const Settings: React.FC = () => {
             } 
           />
           <SettingsRow 
-            icon={<Fingerprint size={16} className="text-emerald-500" />} 
+            icon={<Cpu size={16} className="text-emerald-500" />} 
+            label="AI Brain" 
+            action={
+              <select 
+                value={settings.selectedModel}
+                onChange={(e) => setSettings({...settings, selectedModel: e.target.value})}
+                className="bg-slate-50 dark:bg-slate-800 border-none rounded-lg px-2 py-1.5 font-black text-[10px] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20 uppercase tracking-tighter"
+              >
+                <option value="gemini-flash-lite-latest">Flash Lite (Free & Ultra Fast)</option>
+                <option value="gemini-3-flash-preview">Flash (Free & Fast)</option>
+                <option value="gemini-3-pro-preview">Pro (Complex & Slow)</option>
+              </select>
+            }
+          />
+          <SettingsRow 
+            icon={<Fingerprint size={16} className="text-indigo-500" />} 
             label="Biometric Protection" 
             disabled={!bioAvailable}
             action={
@@ -332,7 +348,7 @@ const SettingsRow: React.FC<{ icon: React.ReactNode; label: string; action?: Rea
 );
 
 const ProfileModal: React.FC<{ profile: UserProfile; onClose: () => void; onUpdate: (p: UserProfile) => void; onSignOut: () => void }> = ({ profile, onClose, onUpdate, onSignOut }) => {
-  const [formData, setFormData] = useState({ ...profile });
+  const [formData, setFormData] = useState({ ...profile, trackedSymbols: profile.trackedSymbols || [] });
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleChange = (field: keyof UserProfile, value: any) => {
@@ -341,6 +357,12 @@ const ProfileModal: React.FC<{ profile: UserProfile; onClose: () => void; onUpda
       newData.name = `${newData.firstName} ${newData.lastName}`.trim();
     }
     setFormData(newData);
+  };
+
+  const handleRemoveSymbol = (symbol: string) => {
+    const newList = formData.trackedSymbols?.filter(s => s !== symbol) || [];
+    setFormData({ ...formData, trackedSymbols: newList });
+    if (navigator.vibrate) navigator.vibrate(5);
   };
 
   const handleSave = () => {
@@ -371,7 +393,7 @@ const ProfileModal: React.FC<{ profile: UserProfile; onClose: () => void; onUpda
           </button>
         </div>
 
-        <div className="space-y-5 max-h-[60vh] overflow-y-auto no-scrollbar pb-6 px-1">
+        <div className="space-y-6 max-h-[60vh] overflow-y-auto no-scrollbar pb-6 px-1">
           <div className="p-4 rounded-2xl border bg-emerald-50 border-emerald-100 dark:bg-emerald-900/10 dark:border-emerald-500/20 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Shield size={18} className="text-emerald-500" />
@@ -406,6 +428,30 @@ const ProfileModal: React.FC<{ profile: UserProfile; onClose: () => void; onUpda
             <div className="relative">
               <input className={inputStyle} value={formData.email} onChange={(e) => handleChange('email', e.target.value)} />
               <Mail size={16} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400" />
+            </div>
+          </div>
+
+          {/* Manage Tracked Symbols */}
+          <div className="space-y-3">
+            <label className={labelStyle}>Tracked Assets</label>
+            <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-white/5">
+              {formData.trackedSymbols.length === 0 ? (
+                <p className="text-[10px] font-bold text-slate-400 uppercase text-center py-2">No tracked symbols yet</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {formData.trackedSymbols.map(s => (
+                    <div 
+                      key={s} 
+                      className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm"
+                    >
+                      <span className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-300">{s}</span>
+                      <button onClick={() => handleRemoveSymbol(s)} className="text-rose-500 p-0.5">
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

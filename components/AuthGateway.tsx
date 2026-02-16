@@ -1,6 +1,7 @@
 
 import React, { useState, useRef } from 'react';
-import { ChartPie, ArrowRight, Delete, DollarSign, Sparkles, ShieldCheck, Upload, FileJson } from 'lucide-react';
+/* Added Loader2 to imports from lucide-react */
+import { ChartPie, ArrowRight, Delete, DollarSign, Sparkles, ShieldCheck, Upload, ChevronLeft, Loader2 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { db } from '../db';
 
@@ -9,8 +10,8 @@ interface AuthGatewayProps {
 }
 
 const AuthGateway: React.FC<AuthGatewayProps> = ({ onComplete }) => {
-  // Direct entry to identity setup
-  const [step, setStep] = useState<'identity' | 'security-choice' | 'pin-setup' | 'pin-confirm' | 'success'>('identity');
+  // Start with a clean welcome screen
+  const [step, setStep] = useState<'welcome' | 'identity' | 'security-choice' | 'pin-setup' | 'pin-confirm' | 'success'>('welcome');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
   
@@ -52,7 +53,6 @@ const AuthGateway: React.FC<AuthGatewayProps> = ({ onComplete }) => {
 
         if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
         
-        // Trigger success state and reload
         setStep('success');
         setTimeout(() => {
           onComplete(data.profile);
@@ -112,7 +112,7 @@ const AuthGateway: React.FC<AuthGatewayProps> = ({ onComplete }) => {
     if (step === 'pin-confirm') setConfirmPin(prev => prev.slice(0, -1));
   };
 
-  const inputStyle = "w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-2xl px-5 py-3.5 font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-400";
+  const inputStyle = "w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-2xl px-5 py-4 font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-slate-400";
   const labelStyle = "text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2 mb-1.5 block";
 
   if (step === 'success') {
@@ -133,104 +133,118 @@ const AuthGateway: React.FC<AuthGatewayProps> = ({ onComplete }) => {
 
   return (
     <div className="fixed inset-0 z-[200] bg-slate-50 dark:bg-[#020617] flex flex-col items-center justify-center py-12 px-6 overflow-y-auto no-scrollbar">
-      {/* Branding Overlay (Static) */}
-      <div className="flex flex-col items-center w-full max-w-sm mb-12 animate-in fade-in duration-1000">
-        <div className="w-20 h-20 rounded-[2rem] bg-blue-600 shadow-2xl shadow-blue-500/40 flex items-center justify-center text-white mb-6 animate-float relative overflow-visible">
-          <ChartPie size={36} />
-          <div className="absolute top-[14px] right-[14px] bg-blue-600 border-[2.5px] border-white dark:border-slate-900 rounded-full w-7 h-7 flex items-center justify-center shadow-xl">
-             <DollarSign size={14} strokeWidth={4} />
+      {/* Branding - Always Visible or animated away */}
+      <div className={`flex flex-col items-center w-full max-w-sm transition-all duration-700 ${step === 'welcome' ? 'mb-12' : 'mb-8 scale-90'}`}>
+        <div className="w-24 h-24 rounded-[2.2rem] bg-blue-600 shadow-2xl shadow-blue-500/40 flex items-center justify-center text-white mb-6 animate-float relative overflow-visible">
+          <ChartPie size={42} />
+          <div className="absolute top-[16px] right-[16px] bg-blue-600 border-[3px] border-white dark:border-slate-900 rounded-full w-8 h-8 flex items-center justify-center shadow-xl">
+             <DollarSign size={16} strokeWidth={4} />
           </div>
         </div>
-        <h1 className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white">Vantage</h1>
-        <p className="text-slate-500 dark:text-slate-400 font-bold tracking-[0.2em] text-[10px] uppercase mt-1">All your finances in one place</p>
+        <h1 className="text-5xl font-black tracking-tighter text-slate-900 dark:text-white">Vantage</h1>
+        <p className="text-slate-500 dark:text-slate-400 font-bold tracking-[0.2em] text-[11px] uppercase mt-1">All your finances in one place</p>
       </div>
 
-      {/* Setup Steps */}
-      {step === 'identity' && (
-        <div className="w-full max-w-sm animate-in slide-in-from-bottom-4 duration-500">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-black text-slate-900 dark:text-white">Profile Setup</h2>
-            <p className="text-xs text-slate-500 font-medium">Lets create your secure local account</p>
-          </div>
-          
-          <form onSubmit={(e) => { e.preventDefault(); setStep('security-choice'); }} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className={labelStyle}>First Name</label>
-                <input required className={inputStyle} value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} />
-              </div>
-              <div className="space-y-1">
-                <label className={labelStyle}>Last Name</label>
-                <input required className={inputStyle} value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className={labelStyle}>Email Address</label>
-              <input required type="email" className={inputStyle} value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-            </div>
-            <button type="submit" className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl shadow-blue-500/30 flex items-center justify-center gap-2 mt-4 active:scale-95 transition-all">
-              <span>Continue</span>
-              <ArrowRight size={18} />
+      {step === 'welcome' && (
+        <div className="w-full max-w-sm animate-in slide-in-from-bottom-6 duration-700 delay-200 flex flex-col items-center">
+          <div className="space-y-4 w-full mt-8">
+            <button 
+              onClick={() => setStep('identity')}
+              className="w-full bg-blue-600 text-white font-black py-5 rounded-[2rem] shadow-premium shadow-blue-500/30 flex items-center justify-center gap-4 active:scale-95 transition-all text-lg group"
+            >
+              <span>Get Started</span>
+              <ArrowRight size={22} className="group-hover:translate-x-1 transition-transform" />
             </button>
 
-            <div className="relative flex items-center justify-center py-4">
-              <div className="absolute inset-0 flex items-center px-4">
+            <div className="relative flex items-center justify-center py-6">
+              <div className="absolute inset-0 flex items-center px-8">
                 <div className="w-full border-t border-slate-200 dark:border-white/5"></div>
               </div>
               <span className="relative bg-slate-50 dark:bg-[#020617] px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">or</span>
             </div>
 
             <button 
-              type="button" 
               onClick={() => fileInputRef.current?.click()}
               disabled={isImporting}
-              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 active:bg-slate-50 dark:active:bg-slate-800 transition-all shadow-sm"
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-black py-5 rounded-[2rem] flex items-center justify-center gap-3 active:bg-slate-50 dark:active:bg-slate-800 transition-all shadow-premium"
             >
-              <Upload size={18} className="text-blue-500" />
-              <span>Continue with Backup</span>
+              {isImporting ? <Loader2 size={20} className="animate-spin text-blue-500" /> : <Upload size={20} className="text-blue-500" />}
+              <span>Restore from Backup</span>
             </button>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              className="hidden" 
-              accept=".json" 
-              onChange={handleBackupImport} 
-            />
+            <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleBackupImport} />
+          </div>
+          
+          <p className="mt-12 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center opacity-50">Local data. Global privacy.</p>
+        </div>
+      )}
+
+      {step === 'identity' && (
+        <div className="w-full max-w-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex items-center justify-between mb-8">
+            <button onClick={() => setStep('welcome')} className="p-2.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 active:scale-90 transition-all">
+              <ChevronLeft size={20} />
+            </button>
+            <div className="text-center">
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white">Profile Setup</h2>
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Identify your vault</p>
+            </div>
+            <div className="w-10"></div>
+          </div>
+          
+          <form onSubmit={(e) => { e.preventDefault(); setStep('security-choice'); }} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className={labelStyle}>First Name</label>
+                <input required placeholder="John" className={inputStyle} value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} />
+              </div>
+              <div className="space-y-1">
+                <label className={labelStyle}>Last Name</label>
+                <input required placeholder="Doe" className={inputStyle} value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className={labelStyle}>Email Address</label>
+              <input required type="email" placeholder="john@example.com" className={inputStyle} value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+            </div>
+            <button type="submit" className="w-full bg-blue-600 text-white font-black py-5 rounded-[2rem] shadow-premium shadow-blue-500/30 flex items-center justify-center gap-3 mt-6 active:scale-95 transition-all">
+              <span>Continue</span>
+              <ArrowRight size={20} />
+            </button>
           </form>
         </div>
       )}
 
       {step === 'security-choice' && (
         <div className="w-full max-w-sm animate-in slide-in-from-right duration-300 flex flex-col items-center">
-          <div className="w-16 h-16 rounded-full bg-blue-600/10 flex items-center justify-center text-blue-600 mb-6">
-            <ShieldCheck size={32} />
+          <div className="w-20 h-20 rounded-[1.8rem] bg-blue-600/10 flex items-center justify-center text-blue-600 mb-8 shadow-inner">
+            <ShieldCheck size={40} />
           </div>
-          <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2 text-center">Vault Security</h2>
-          <p className="text-xs text-slate-500 mb-10 text-center font-medium max-w-[240px]">Add an extra layer of protection to keep your data truly private.</p>
+          <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-2 text-center">Vault Security</h2>
+          <p className="text-xs text-slate-500 mb-12 text-center font-medium max-w-[260px] leading-relaxed">Protect your financial records with an extra layer of encryption.</p>
           <div className="space-y-4 w-full">
-            <button onClick={() => setStep('pin-setup')} className="w-full p-5 bg-blue-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-blue-500/20 active:scale-95 transition-all">Set Passcode</button>
-            <button onClick={() => finalizeLocalAccount()} className="w-full p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-2xl font-black text-lg text-slate-900 dark:text-white active:bg-slate-50 transition-all">Skip for Now</button>
+            <button onClick={() => setStep('pin-setup')} className="w-full p-5 bg-blue-600 text-white rounded-[1.8rem] font-black text-lg shadow-premium shadow-blue-500/20 active:scale-95 transition-all">Set Passcode</button>
+            <button onClick={() => finalizeLocalAccount()} className="w-full p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-[1.8rem] font-black text-lg text-slate-900 dark:text-white active:bg-slate-50 dark:active:bg-slate-800 transition-all">Skip Security</button>
           </div>
         </div>
       )}
 
       {(step === 'pin-setup' || step === 'pin-confirm') && (
         <div className="fixed inset-0 z-[230] bg-slate-50 dark:bg-[#020617] p-6 animate-in zoom-in duration-300 flex flex-col items-center justify-center">
-          <h2 className="text-2xl font-black mb-12 text-slate-900 dark:text-white tracking-tight">{step === 'pin-setup' ? 'Set Vault PIN' : 'Confirm Vault PIN'}</h2>
-          <div className="flex gap-4 mb-16">
+          <h2 className="text-3xl font-black mb-12 text-slate-900 dark:text-white tracking-tight leading-tight text-center">{step === 'pin-setup' ? 'Set Vault PIN' : 'Confirm Vault PIN'}</h2>
+          <div className="flex gap-6 mb-16">
             {[0, 1, 2, 3].map(i => (
-              <div key={i} className={`w-3.5 h-3.5 rounded-full border-2 transition-all duration-300 ${(step === 'pin-setup' ? pin : confirmPin).length > i ? (pinError ? 'bg-rose-500 border-rose-500 animate-shake' : 'bg-blue-600 border-blue-600 scale-125 shadow-lg shadow-blue-600/30') : 'border-slate-300 dark:border-slate-700'}`}></div>
+              <div key={i} className={`w-4 h-4 rounded-full border-2 transition-all duration-300 ${(step === 'pin-setup' ? pin : confirmPin).length > i ? (pinError ? 'bg-rose-500 border-rose-500 animate-shake' : 'bg-blue-600 border-blue-600 scale-125 shadow-glow shadow-blue-600/30') : 'border-slate-300 dark:border-slate-700'}`}></div>
             ))}
           </div>
-          <div className="grid grid-cols-3 gap-6">
+          <div className="grid grid-cols-3 gap-8">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0].map((num, i) => (
               num !== '' ? (
-                <button key={i} onClick={() => handlePinInput(num.toString())} className="w-16 h-16 rounded-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 text-2xl font-black text-slate-900 dark:text-white active:bg-blue-50 dark:active:bg-blue-600/20 active:scale-90 transition-all shadow-sm">{num}</button>
+                <button key={i} onClick={() => handlePinInput(num.toString())} className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 text-2xl font-black text-slate-900 dark:text-white active:bg-blue-600 active:text-white active:scale-90 transition-all shadow-premium">{num}</button>
               ) : <div key={i} />
             ))}
-            <button key="delete-btn" onClick={clearLast} className="w-16 h-16 flex items-center justify-center text-slate-400 active:scale-90 transition-all"><Delete size={24} /></button>
+            <button key="delete-btn" onClick={clearLast} className="w-16 h-16 md:w-20 md:h-20 flex items-center justify-center text-slate-400 active:scale-90 transition-all"><Delete size={28} /></button>
           </div>
-          <button onClick={() => setStep('security-choice')} className="mt-12 text-[10px] font-black uppercase tracking-widest text-slate-400">Cancel</button>
+          <button onClick={() => setStep('security-choice')} className="mt-16 text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 hover:text-slate-600 transition-colors">Cancel Setup</button>
         </div>
       )}
     </div>

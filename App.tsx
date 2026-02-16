@@ -11,7 +11,8 @@ import {
   Sparkles,
   ShieldCheck,
   History,
-  Activity
+  Activity,
+  Newspaper
 } from 'lucide-react';
 import { Portfolio, Currency, UserProfile, AppSettings, ExchangeRates, Transaction } from './types';
 import { INITIAL_RATES } from './constants';
@@ -21,6 +22,7 @@ import Portfolios from './components/Portfolios';
 import Settings from './components/Settings';
 import Insights from './components/Insights';
 import Transactions from './components/Transactions';
+import LatestNews from './components/LatestNews';
 import AuthGateway from './components/AuthGateway';
 import UnlockScreen from './components/UnlockScreen';
 import PortfolioForm from './components/PortfolioForm';
@@ -44,9 +46,11 @@ interface AppContextType {
   reloadData: () => Promise<void>;
   shouldOpenProfile: boolean;
   setShouldOpenProfile: (val: boolean) => void;
-  setActiveTab: (tab: 'dashboard' | 'transactions' | 'portfolios' | 'settings' | 'insights') => void;
+  setActiveTab: (tab: 'dashboard' | 'transactions' | 'portfolios' | 'settings' | 'insights' | 'news') => void;
   setIsTxModalOpen: (val: boolean) => void;
   setIsPortfolioModalOpen: (val: boolean) => void;
+  newsCache: any[];
+  setNewsCache: (news: any[]) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -61,7 +65,7 @@ const App: React.FC = () => {
   const [isReady, setIsReady] = useState(false);
   const [isAuth, setIsAuth] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'portfolios' | 'settings' | 'insights'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'portfolios' | 'settings' | 'insights' | 'news'>('dashboard');
   const [shouldOpenProfile, setShouldOpenProfile] = useState(false);
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [isPortfolioModalOpen, setIsPortfolioModalOpen] = useState(false);
@@ -69,10 +73,19 @@ const App: React.FC = () => {
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [baseCurrency, setBaseCurrency] = useState<Currency>(Currency.CAD);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [settings, setSettings] = useState<AppSettings>({ darkMode: false, fontSize: 16, privacyMode: false, autoSync: true });
+  const [settings, setSettings] = useState<AppSettings>({ 
+    darkMode: false, 
+    fontSize: 16, 
+    privacyMode: false, 
+    autoSync: true,
+    selectedModel: 'gemini-3-flash-preview'
+  });
   const [rates, setRates] = useState<ExchangeRates>(INITIAL_RATES);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   
+  // News Session Cache
+  const [newsCache, setNewsCache] = useState<any[]>([]);
+
   const backgroundTimeRef = useRef<number | null>(null);
   const lockGracePeriodRef = useRef<number>(3 * 60 * 1000); 
 
@@ -112,6 +125,7 @@ const App: React.FC = () => {
     setIsAuth(false);
     setIsLocked(false);
     backgroundTimeRef.current = null;
+    setNewsCache([]);
   };
 
   useEffect(() => {
@@ -240,7 +254,9 @@ const App: React.FC = () => {
     setShouldOpenProfile,
     setActiveTab,
     setIsTxModalOpen,
-    setIsPortfolioModalOpen
+    setIsPortfolioModalOpen,
+    newsCache,
+    setNewsCache
   };
 
   return (
@@ -283,8 +299,8 @@ const App: React.FC = () => {
         </header>
 
         {/* Navigation - Modern Floating Pill Design for Mobile */}
-        <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border border-white/30 dark:border-white/10 md:relative md:w-64 md:left-0 md:translate-x-0 md:bottom-0 md:border-none md:bg-transparent z-50 rounded-[2rem] px-2 py-2 shadow-premium md:shadow-none transition-all duration-500 md:flex md:flex-col md:items-stretch">
-          <div className="flex md:flex-col justify-between items-center md:items-start md:p-6 gap-1">
+        <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-lg bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border border-white/30 dark:border-white/10 md:relative md:w-64 md:left-0 md:translate-x-0 md:bottom-0 md:border-none md:bg-transparent z-50 rounded-[2rem] px-2 py-2 shadow-premium md:shadow-none transition-all duration-500 md:flex md:flex-col md:items-stretch overflow-hidden">
+          <div className="flex md:flex-col justify-between items-center md:items-start md:p-6 gap-0.5 md:gap-1">
             <div className="hidden md:flex flex-col gap-5 mb-10 w-full">
                <div 
                   className="flex items-center gap-4 cursor-pointer active:opacity-70 transition-all p-2 rounded-3xl hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -307,11 +323,12 @@ const App: React.FC = () => {
                </div>
             </div>
 
-            <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Home" />
-            <TabButton active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} icon={<History size={20} />} label="Activity" />
-            <TabButton active={activeTab === 'portfolios'} onClick={() => setActiveTab('portfolios')} icon={<Wallet size={20} />} label="Assets" />
-            <TabButton active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon={<Sparkles size={20} />} label="AI" />
-            <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<SettingsIcon size={20} />} label="Prefs" />
+            <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={18} />} label="Home" />
+            <TabButton active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} icon={<History size={18} />} label="Activity" />
+            <TabButton active={activeTab === 'news'} onClick={() => setActiveTab('news')} icon={<Newspaper size={18} />} label="News" />
+            <TabButton active={activeTab === 'portfolios'} onClick={() => setActiveTab('portfolios')} icon={<Wallet size={18} />} label="Assets" />
+            <TabButton active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon={<Sparkles size={18} />} label="AI" />
+            <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<SettingsIcon size={18} />} label="Prefs" />
           </div>
         </nav>
 
@@ -322,6 +339,7 @@ const App: React.FC = () => {
             {activeTab === 'portfolios' && <Portfolios />}
             {activeTab === 'insights' && <Insights />}
             {activeTab === 'settings' && <Settings />}
+            {activeTab === 'news' && <LatestNews />}
           </div>
         </main>
 
@@ -357,7 +375,7 @@ const TabButton: React.FC<TabButtonProps> = ({ active, onClick, icon, label }) =
     <button 
       onClick={handleClick}
       className={`
-        flex flex-col md:flex-row items-center gap-1.5 md:gap-4 p-2.5 md:px-4 md:py-3 rounded-[1.4rem] flex-1 md:w-full transition-all duration-300
+        flex flex-col md:flex-row items-center gap-1 md:gap-4 p-2 md:px-4 md:py-3 rounded-[1.2rem] flex-1 md:w-full transition-all duration-300
         ${active 
           ? 'text-blue-600 bg-blue-50/50 dark:bg-blue-600/10 md:shadow-sm scale-100' 
           : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50'}
@@ -366,7 +384,7 @@ const TabButton: React.FC<TabButtonProps> = ({ active, onClick, icon, label }) =
       <div className={`transition-transform duration-300 ${active ? 'scale-110' : 'scale-100'}`}>
         {icon}
       </div>
-      <span className={`text-[9px] md:text-[15px] font-black md:font-extrabold tracking-tight ${active ? 'opacity-100' : 'opacity-70'}`}>{label}</span>
+      <span className={`text-[8px] md:text-[14px] font-black md:font-extrabold tracking-tight ${active ? 'opacity-100' : 'opacity-70'}`}>{label}</span>
     </button>
   );
 };

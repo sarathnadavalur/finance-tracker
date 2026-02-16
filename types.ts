@@ -66,6 +66,7 @@ export interface UserProfile {
   lastActive?: number;
   syncEnabled?: boolean;
   lastCloudSync?: number;
+  trackedSymbols?: string[]; // New: symbols like BTC, AAPL, etc.
 }
 
 export interface AppSettings {
@@ -73,6 +74,7 @@ export interface AppSettings {
   fontSize: number;
   privacyMode: boolean;
   autoSync: boolean;
+  selectedModel: string;
 }
 
 export interface ExchangeRates {
