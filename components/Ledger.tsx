@@ -1,9 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
-import { X, Plus, ArrowUpRight, ArrowDownLeft, Trash2, Calendar, Tag, CreditCard, ChevronLeft } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Plus, ArrowUpRight, ArrowDownLeft, Trash2, Calendar, Tag, CreditCard, ChevronLeft, Edit3, AlertCircle } from 'lucide-react';
 import { Portfolio, Transaction, TransactionCategory, Currency } from '../types';
 import { useApp } from '../App';
 import { db } from '../db';
+import { TransactionModal } from './Transactions';
 
 interface LedgerProps {
   portfolio: Portfolio;
@@ -11,15 +12,15 @@ interface LedgerProps {
 }
 
 const Ledger: React.FC<LedgerProps> = ({ portfolio, onClose }) => {
-  const { settings } = useApp();
+  const { settings, reloadData } = useApp();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [formData, setFormData] = useState({
-    amount: '',
-    type: 'expense' as 'income' | 'expense',
-    category: TransactionCategory.OTHER,
-    note: ''
-  });
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [txToEdit, setTxToEdit] = useState<Transaction | null>(null);
+  
+  // Menu and State
+  const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
+  const [isPressingId, setIsPressingId] = useState<string | null>(null);
+  const pressTimer = useRef<number | null>(null);
 
   const fetchTransactions = async () => {
     const data = await db.getTransactionsByPortfolio(portfolio.id);
@@ -30,34 +31,30 @@ const Ledger: React.FC<LedgerProps> = ({ portfolio, onClose }) => {
     fetchTransactions();
   }, [portfolio.id]);
 
-  const handleAddTransaction = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const amountNum = parseFloat(formData.amount);
-    if (isNaN(amountNum)) return;
-
-    const newTx: Transaction = {
-      id: Date.now().toString(),
-      portfolioId: portfolio.id,
-      amount: amountNum,
-      type: formData.type,
-      category: formData.category,
-      note: formData.note,
-      date: Date.now(),
-      updatedAt: Date.now()
-    };
-
-    await db.saveTransaction(newTx);
-    
-    setFormData({ amount: '', type: 'expense', category: TransactionCategory.OTHER, note: '' });
-    setShowAddForm(false);
-    fetchTransactions();
-    if (navigator.vibrate) navigator.vibrate(10);
+  const handleStartPress = (id: string) => {
+    if (selectedTxId) return;
+    setIsPressingId(id);
+    pressTimer.current = window.setTimeout(() => {
+      if (navigator.vibrate) navigator.vibrate(50);
+      setSelectedTxId(id);
+      setIsPressingId(null);
+    }, 600);
   };
 
-  const handleDeleteTransaction = async (tx: Transaction) => {
-    if (!confirm('Remove this transaction record?')) return;
-    await db.deleteTransaction(tx.id);
-    fetchTransactions();
+  const handleEndPress = () => {
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+    setIsPressingId(null);
+  };
+
+  const handleDeleteTx = async (id: string) => {
+    await db.deleteTransaction(id);
+    await fetchTransactions();
+    await reloadData(); // Refresh global totals
+    setSelectedTxId(null);
+    if (navigator.vibrate) navigator.vibrate([10, 30]);
   };
 
   const formatValue = (val: number) => {
@@ -72,16 +69,6 @@ const Ledger: React.FC<LedgerProps> = ({ portfolio, onClose }) => {
   const formatDate = (ts: number) => {
     return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
-
-  const expenseCategories = [
-    TransactionCategory.FOOD, TransactionCategory.RENT, TransactionCategory.UTILITIES,
-    TransactionCategory.GROCERY, TransactionCategory.ENTERTAINMENT, TransactionCategory.OTHER
-  ];
-
-  const incomeCategories = [TransactionCategory.SALARY, TransactionCategory.OTHER];
-
-  const labelStyle = "text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5 block ml-1";
-  const inputStyle = "w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-white/5 rounded-2xl px-5 py-3.5 font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-sm";
 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-50 dark:bg-[#020617] flex flex-col animate-in slide-in-from-right duration-300">
@@ -109,37 +96,74 @@ const Ledger: React.FC<LedgerProps> = ({ portfolio, onClose }) => {
           </div>
         ) : (
           <div className="space-y-3">
-            {transactions.map(tx => (
-              <div key={tx.id} className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-white/5 p-4 rounded-[1.5rem] flex items-center justify-between group">
-                <div className="flex items-center gap-4 flex-1">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${tx.type === 'income' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                    {tx.type === 'income' ? <ArrowDownLeft size={20} /> : <ArrowUpRight size={20} />}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-900 dark:text-white text-sm truncate">{tx.category}</span>
-                      <span className="text-[10px] text-slate-400 font-medium shrink-0">• {formatDate(tx.date)}</span>
+            {transactions.map(tx => {
+              const isSelected = selectedTxId === tx.id;
+              const isPressing = isPressingId === tx.id;
+
+              return (
+                <div 
+                  key={tx.id} 
+                  onMouseDown={() => handleStartPress(tx.id)}
+                  onMouseUp={handleEndPress}
+                  onMouseLeave={handleEndPress}
+                  onTouchStart={() => handleStartPress(tx.id)}
+                  onTouchEnd={handleEndPress}
+                  className={`relative bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-4 rounded-[1.8rem] flex items-center justify-between group shadow-sm transition-all duration-300 select-none overflow-hidden
+                    ${isPressing ? 'scale-[0.98] brightness-90' : 'animate-in fade-in slide-in-from-bottom-2 duration-300'}
+                  `}
+                >
+                  {isSelected && (
+                    <div className="absolute inset-0 z-30 bg-black/90 backdrop-blur-xl flex items-center justify-center gap-6 animate-in fade-in zoom-in duration-200 p-2">
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setTxToEdit(tx); setSelectedTxId(null); }}
+                              className="flex flex-col items-center gap-2 text-white group"
+                            >
+                              <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center group-active:scale-90 transition-transform"><Edit3 size={20} /></div>
+                              <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Edit</span>
+                            </button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleDeleteTx(tx.id); }}
+                              className="flex flex-col items-center gap-2 text-rose-400 group"
+                            >
+                              <div className="w-12 h-12 rounded-full bg-rose-500/20 flex items-center justify-center group-active:scale-90 transition-transform"><Trash2 size={20} /></div>
+                              <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Delete</span>
+                            </button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setSelectedTxId(null); }}
+                              className="absolute top-3 right-4 p-1 text-white/40 hover:text-white"
+                            >
+                              <X size={20} />
+                            </button>
                     </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 italic">{tx.note || 'Reference record'}</p>
+                  )}
+
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${tx.type === 'income' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                      {tx.type === 'income' ? <ArrowDownLeft size={20} /> : <ArrowUpRight size={20} />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 dark:text-white text-sm truncate">{tx.category}</span>
+                        <span className="text-[10px] text-slate-400 font-medium shrink-0">• {formatDate(tx.date)}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 italic">{tx.note || 'Reference record'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 ml-4">
+                    <span className={`font-black tabular-nums ${tx.type === 'income' ? 'text-emerald-500' : 'text-slate-900 dark:text-white'} ${settings.privacyMode ? 'blur-sm' : ''}`}>
+                      {tx.type === 'income' ? '+' : '-'}{formatValue(tx.amount)}
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 ml-4">
-                  <span className={`font-black tabular-nums ${tx.type === 'income' ? 'text-emerald-500' : 'text-slate-900 dark:text-white'} ${settings.privacyMode ? 'blur-sm' : ''}`}>
-                    {tx.type === 'income' ? '+' : '-'}{formatValue(tx.amount)}
-                  </span>
-                  <button onClick={() => handleDeleteTransaction(tx)} className="p-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-rose-500">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
       <footer className="p-6 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border-t border-slate-200 dark:border-white/5 shrink-0">
         <button 
-          onClick={() => setShowAddForm(true)}
+          onClick={() => setShowAddModal(true)}
           className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl shadow-blue-500/30 flex items-center justify-center gap-3 active:scale-95 transition-all text-sm uppercase tracking-widest"
         >
           <Plus size={20} />
@@ -147,41 +171,21 @@ const Ledger: React.FC<LedgerProps> = ({ portfolio, onClose }) => {
         </button>
       </footer>
 
-      {showAddForm && (
-        <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-md flex items-end sm:items-center sm:justify-center sm:p-4 animate-in fade-in duration-300">
-          <div className="w-full sm:max-w-md bg-white dark:bg-slate-900 rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">New Entry</h3>
-              <button onClick={() => setShowAddForm(false)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                <X size={24} className="text-slate-900 dark:text-white" />
-              </button>
-            </div>
+      {showAddModal && (
+        <TransactionModal 
+          onClose={() => setShowAddModal(false)}
+          onSuccess={() => { fetchTransactions(); reloadData(); setShowAddModal(false); }}
+          fixedPortfolioId={portfolio.id}
+        />
+      )}
 
-            <form onSubmit={handleAddTransaction} className="space-y-4">
-              <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
-                <button type="button" onClick={() => setFormData({...formData, type: 'expense', category: TransactionCategory.OTHER})} className={`flex-1 py-2.5 rounded-xl font-black text-xs transition-all ${formData.type === 'expense' ? 'bg-white dark:bg-slate-700 text-rose-500 shadow-sm' : 'text-slate-400'}`}>Expense</button>
-                <button type="button" onClick={() => setFormData({...formData, type: 'income', category: TransactionCategory.OTHER})} className={`flex-1 py-2.5 rounded-xl font-black text-xs transition-all ${formData.type === 'income' ? 'bg-white dark:bg-slate-700 text-emerald-500 shadow-sm' : 'text-slate-400'}`}>Income</button>
-              </div>
-              <div className="space-y-1">
-                <label className={labelStyle}>Amount</label>
-                <input required type="number" step="0.01" placeholder="0.00" className={inputStyle + " text-lg"} value={formData.amount} onChange={(e) => setFormData({...formData, amount: e.target.value})} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className={labelStyle}>Category</label>
-                  <select className={inputStyle + " appearance-none"} value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value as TransactionCategory})}>
-                    {formData.type === 'expense' ? expenseCategories.map(c => <option key={c} value={c}>{c}</option>) : incomeCategories.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className={labelStyle}>Note</label>
-                  <input type="text" placeholder="..." className={inputStyle} value={formData.note} onChange={(e) => setFormData({...formData, note: e.target.value})} />
-                </div>
-              </div>
-              <button type="submit" className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl shadow-blue-500/30 active:scale-95 transition-all text-sm uppercase tracking-widest mt-2">Post Entry</button>
-            </form>
-          </div>
-        </div>
+      {txToEdit && (
+        <TransactionModal 
+          txToEdit={txToEdit}
+          onClose={() => setTxToEdit(null)}
+          onSuccess={() => { fetchTransactions(); reloadData(); setTxToEdit(null); }}
+          fixedPortfolioId={portfolio.id}
+        />
       )}
     </div>
   );

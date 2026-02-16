@@ -12,7 +12,7 @@ import {
   ShieldCheck,
   History
 } from 'lucide-react';
-import { Portfolio, Currency, UserProfile, AppSettings, ExchangeRates } from './types';
+import { Portfolio, Currency, UserProfile, AppSettings, ExchangeRates, Transaction } from './types';
 import { INITIAL_RATES } from './constants';
 import { db } from './db';
 import Dashboard from './components/Dashboard';

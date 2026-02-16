@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useApp } from '../App';
 import { db } from '../db';
 import { Transaction, TransactionCategory, Portfolio, Currency } from '../types';
@@ -17,37 +17,64 @@ import {
   CreditCard,
   PieChart,
   History,
-  Loader2
+  Loader2,
+  Edit3,
+  Trash2,
+  AlertCircle
 } from 'lucide-react';
 
-export const TransactionModal: React.FC<{ onClose: () => void; onSuccess: () => void }> = ({ onClose, onSuccess }) => {
-  const { portfolios, baseCurrency } = useApp();
+export const TransactionModal: React.FC<{ 
+  onClose: () => void; 
+  onSuccess: () => void;
+  txToEdit?: Transaction | null;
+  fixedPortfolioId?: string;
+}> = ({ onClose, onSuccess, txToEdit, fixedPortfolioId }) => {
+  const { portfolios } = useApp();
   const [formData, setFormData] = useState({
-    portfolioId: portfolios[0]?.id || '',
+    portfolioId: fixedPortfolioId || portfolios[0]?.id || '',
     amount: '',
     type: 'expense' as 'income' | 'expense',
     category: TransactionCategory.OTHER,
     note: ''
   });
 
-  const handleAddTransaction = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (txToEdit) {
+      setFormData({
+        portfolioId: fixedPortfolioId || txToEdit.portfolioId,
+        amount: txToEdit.amount.toString(),
+        type: txToEdit.type,
+        category: txToEdit.category,
+        note: txToEdit.note
+      });
+    }
+  }, [txToEdit, fixedPortfolioId]);
+
+  // Ensure fixed ID is respected if it changes
+  useEffect(() => {
+    if (fixedPortfolioId) {
+      setFormData(prev => ({ ...prev, portfolioId: fixedPortfolioId }));
+    }
+  }, [fixedPortfolioId]);
+
+  const handleSaveTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     const amountNum = parseFloat(formData.amount);
     const targetPortfolio = portfolios.find(p => p.id === formData.portfolioId);
     if (isNaN(amountNum) || !targetPortfolio) return;
 
-    const newTx: Transaction = {
-      id: Date.now().toString(),
+    const txData: Transaction = {
+      id: txToEdit ? txToEdit.id : Date.now().toString(),
       portfolioId: targetPortfolio.id,
       amount: amountNum,
       type: formData.type,
       category: formData.category,
       note: formData.note,
-      date: Date.now(),
+      date: txToEdit ? txToEdit.date : Date.now(),
       updatedAt: Date.now()
     };
 
-    await db.saveTransaction(newTx);
+    await db.saveTransaction(txData);
     onSuccess();
     if (navigator.vibrate) navigator.vibrate(10);
   };
@@ -66,13 +93,15 @@ export const TransactionModal: React.FC<{ onClose: () => void; onSuccess: () => 
     <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-md flex items-end sm:items-center sm:justify-center sm:p-4 animate-in fade-in duration-300">
       <div className="w-full sm:max-w-md bg-white dark:bg-slate-900 rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Quick Entry</h3>
+          <h3 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+            {txToEdit ? 'Edit Entry' : 'Quick Entry'}
+          </h3>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
             <X size={24} className="text-slate-900 dark:text-white" />
           </button>
         </div>
 
-        <form onSubmit={handleAddTransaction} className="space-y-4">
+        <form onSubmit={handleSaveTransaction} className="space-y-4">
           <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
             <button 
               type="button"
@@ -90,17 +119,19 @@ export const TransactionModal: React.FC<{ onClose: () => void; onSuccess: () => 
             </button>
           </div>
 
-          <div className="space-y-1">
-            <label className={labelStyle}>Target Wallet</label>
-            <select 
-              required
-              className={inputStyle + " appearance-none cursor-pointer"}
-              value={formData.portfolioId}
-              onChange={(e) => setFormData({...formData, portfolioId: e.target.value})}
-            >
-              {portfolios.map(p => <option key={p.id} value={p.id}>{p.name} ({p.currency})</option>)}
-            </select>
-          </div>
+          {!fixedPortfolioId && (
+            <div className="space-y-1">
+              <label className={labelStyle}>Target Wallet</label>
+              <select 
+                required
+                className={inputStyle + " appearance-none cursor-pointer"}
+                value={formData.portfolioId}
+                onChange={(e) => setFormData({...formData, portfolioId: e.target.value})}
+              >
+                {portfolios.map(p => <option key={p.id} value={p.id}>{p.name} ({p.currency})</option>)}
+              </select>
+            </div>
+          )}
 
           <div className="space-y-1">
             <label className={labelStyle}>Amount</label>
@@ -142,7 +173,7 @@ export const TransactionModal: React.FC<{ onClose: () => void; onSuccess: () => 
             type="submit"
             className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl shadow-blue-500/30 active:scale-95 transition-all text-sm uppercase tracking-widest mt-2"
           >
-            Post Entry
+            {txToEdit ? 'Save Changes' : 'Post Entry'}
           </button>
         </form>
       </div>
@@ -160,6 +191,12 @@ const Transactions: React.FC = () => {
   const [timeRange, setTimeRange] = useState<'7d' | '1m' | '1y' | 'custom'>('1m');
   const [customRange, setCustomRange] = useState({ start: '', end: '' });
 
+  // Menu and Edit state
+  const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
+  const [txToEdit, setTxToEdit] = useState<Transaction | null>(null);
+  const [isPressingId, setIsPressingId] = useState<string | null>(null);
+  const pressTimer = useRef<number | null>(null);
+
   const fetchTransactions = async () => {
     setIsLoading(true);
     const data = await db.getAllTransactions();
@@ -170,6 +207,31 @@ const Transactions: React.FC = () => {
   useEffect(() => {
     fetchTransactions();
   }, []);
+
+  const handleStartPress = (id: string) => {
+    if (selectedTxId) return;
+    setIsPressingId(id);
+    pressTimer.current = window.setTimeout(() => {
+      if (navigator.vibrate) navigator.vibrate(50);
+      setSelectedTxId(id);
+      setIsPressingId(null);
+    }, 600);
+  };
+
+  const handleEndPress = () => {
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+    setIsPressingId(null);
+  };
+
+  const handleDeleteTx = async (id: string) => {
+    await db.deleteTransaction(id);
+    fetchTransactions();
+    setSelectedTxId(null);
+    if (navigator.vibrate) navigator.vibrate([10, 30]);
+  };
 
   const filteredHistory = useMemo(() => {
     if (!searchQuery.trim()) return transactions;
@@ -246,7 +308,7 @@ const Transactions: React.FC = () => {
             <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mt-0.5">Stream of Transactions</p>
           </div>
           <button 
-            onClick={() => setIsTxModalOpen(true)}
+            onClick={() => { setTxToEdit(null); setIsTxModalOpen(true); }}
             className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30 active:scale-90 transition-transform"
           >
             <Plus size={20} />
@@ -311,8 +373,46 @@ const Transactions: React.FC = () => {
               <div className="space-y-3 px-1">
                 {filteredHistory.map(tx => {
                   const p = portfolios.find(p => p.id === tx.portfolioId);
+                  const isSelected = selectedTxId === tx.id;
+                  const isPressing = isPressingId === tx.id;
+
                   return (
-                    <div key={tx.id} className="bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-4 rounded-3xl flex items-center justify-between group shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div 
+                      key={tx.id} 
+                      onMouseDown={() => handleStartPress(tx.id)}
+                      onMouseUp={handleEndPress}
+                      onMouseLeave={handleEndPress}
+                      onTouchStart={() => handleStartPress(tx.id)}
+                      onTouchEnd={handleEndPress}
+                      className={`relative bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-4 rounded-3xl flex items-center justify-between group shadow-sm transition-all duration-300 select-none overflow-hidden
+                        ${isPressing ? 'scale-[0.98] brightness-90' : 'animate-in fade-in slide-in-from-bottom-2 duration-300'}
+                      `}
+                    >
+                      {isSelected && (
+                        <div className="absolute inset-0 z-30 bg-black/90 backdrop-blur-xl flex items-center justify-center gap-6 animate-in fade-in zoom-in duration-200 p-2">
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setTxToEdit(tx); setSelectedTxId(null); }}
+                              className="flex flex-col items-center gap-2 text-white group"
+                            >
+                              <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center group-active:scale-90 transition-transform"><Edit3 size={20} /></div>
+                              <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Edit</span>
+                            </button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleDeleteTx(tx.id); }}
+                              className="flex flex-col items-center gap-2 text-rose-400 group"
+                            >
+                              <div className="w-12 h-12 rounded-full bg-rose-500/20 flex items-center justify-center group-active:scale-90 transition-transform"><Trash2 size={20} /></div>
+                              <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Delete</span>
+                            </button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setSelectedTxId(null); }}
+                              className="absolute top-3 right-4 p-1 text-white/40 hover:text-white"
+                            >
+                              <X size={20} />
+                            </button>
+                        </div>
+                      )}
+
                       <div className="flex items-center gap-4 flex-1">
                         <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${tx.type === 'income' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
                           {tx.type === 'income' ? <ArrowDownLeft size={22} /> : <ArrowUpRight size={22} />}
@@ -403,6 +503,14 @@ const Transactions: React.FC = () => {
           </div>
         )}
       </div>
+
+      {txToEdit && (
+        <TransactionModal 
+          onClose={() => setTxToEdit(null)}
+          onSuccess={() => { fetchTransactions(); setTxToEdit(null); }}
+          txToEdit={txToEdit}
+        />
+      )}
     </div>
   );
 };
