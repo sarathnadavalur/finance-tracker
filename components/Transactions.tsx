@@ -20,7 +20,8 @@ import {
   Loader2,
   Edit3,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  Activity
 } from 'lucide-react';
 
 export const TransactionModal: React.FC<{ 
@@ -86,34 +87,37 @@ export const TransactionModal: React.FC<{
 
   const incomeCategories = [TransactionCategory.SALARY, TransactionCategory.OTHER];
 
-  const labelStyle = "text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 block ml-1";
-  const inputStyle = "w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-white/5 rounded-2xl px-5 py-3.5 font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-sm";
+  const labelStyle = "text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2 block ml-2";
+  const inputStyle = "w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/5 rounded-[1.5rem] px-6 py-4 font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-500/10 transition-all text-base placeholder:opacity-50";
 
   return (
-    <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-md flex items-end sm:items-center sm:justify-center sm:p-4 animate-in fade-in duration-300">
-      <div className="w-full sm:max-w-md bg-white dark:bg-slate-900 rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-            {txToEdit ? 'Edit Entry' : 'Quick Entry'}
-          </h3>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-            <X size={24} className="text-slate-900 dark:text-white" />
+    <div className="fixed inset-0 z-[110] bg-slate-900/80 backdrop-blur-md flex items-end sm:items-center sm:justify-center sm:p-6 animate-in fade-in duration-300">
+      <div className="w-full sm:max-w-md bg-white dark:bg-slate-900 rounded-t-[3rem] sm:rounded-[3rem] p-8 shadow-premium animate-in slide-in-from-bottom duration-500">
+        <div className="flex justify-between items-center mb-10">
+          <div className="flex flex-col">
+            <h3 className="text-2xl font-black tracking-tighter text-slate-900 dark:text-white">
+              {txToEdit ? 'Adjust Record' : 'Quick Journal'}
+            </h3>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Vault Entry</p>
+          </div>
+          <button onClick={onClose} className="p-3 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 active:scale-90 transition-all">
+            <X size={22} />
           </button>
         </div>
 
-        <form onSubmit={handleSaveTransaction} className="space-y-4">
-          <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
+        <form onSubmit={handleSaveTransaction} className="space-y-6">
+          <div className="flex p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-[1.5rem]">
             <button 
               type="button"
               onClick={() => setFormData({...formData, type: 'expense', category: TransactionCategory.OTHER})}
-              className={`flex-1 py-2.5 rounded-xl font-black text-xs transition-all ${formData.type === 'expense' ? 'bg-white dark:bg-slate-700 text-rose-500 shadow-sm' : 'text-slate-400'}`}
+              className={`flex-1 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${formData.type === 'expense' ? 'bg-white dark:bg-slate-700 text-rose-500 shadow-premium' : 'text-slate-400'}`}
             >
               Expense
             </button>
             <button 
               type="button"
               onClick={() => setFormData({...formData, type: 'income', category: TransactionCategory.OTHER})}
-              className={`flex-1 py-2.5 rounded-xl font-black text-xs transition-all ${formData.type === 'income' ? 'bg-white dark:bg-slate-700 text-emerald-500 shadow-sm' : 'text-slate-400'}`}
+              className={`flex-1 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${formData.type === 'income' ? 'bg-white dark:bg-slate-700 text-emerald-500 shadow-premium' : 'text-slate-400'}`}
             >
               Income
             </button>
@@ -121,7 +125,7 @@ export const TransactionModal: React.FC<{
 
           {!fixedPortfolioId && (
             <div className="space-y-1">
-              <label className={labelStyle}>Target Wallet</label>
+              <label className={labelStyle}>Wallet</label>
               <select 
                 required
                 className={inputStyle + " appearance-none cursor-pointer"}
@@ -135,18 +139,20 @@ export const TransactionModal: React.FC<{
 
           <div className="space-y-1">
             <label className={labelStyle}>Amount</label>
-            <input 
-              required
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              className={inputStyle + " text-lg"}
-              value={formData.amount}
-              onChange={(e) => setFormData({...formData, amount: e.target.value})}
-            />
+            <div className="relative">
+              <input 
+                required
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                className={inputStyle + " text-2xl tracking-tighter tabular-nums"}
+                value={formData.amount}
+                onChange={(e) => setFormData({...formData, amount: e.target.value})}
+              />
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className={labelStyle}>Category</label>
               <select 
@@ -158,10 +164,10 @@ export const TransactionModal: React.FC<{
               </select>
             </div>
             <div className="space-y-1">
-              <label className={labelStyle}>Reference</label>
+              <label className={labelStyle}>Note</label>
               <input 
                 type="text"
-                placeholder="Brief note..."
+                placeholder="Details..."
                 className={inputStyle}
                 value={formData.note}
                 onChange={(e) => setFormData({...formData, note: e.target.value})}
@@ -171,9 +177,9 @@ export const TransactionModal: React.FC<{
 
           <button 
             type="submit"
-            className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl shadow-blue-500/30 active:scale-95 transition-all text-sm uppercase tracking-widest mt-2"
+            className="w-full bg-gradient-to-br from-blue-500 to-blue-700 text-white font-black py-5 rounded-[1.8rem] shadow-glow active:scale-95 transition-all text-[15px] uppercase tracking-[0.2em] mt-4"
           >
-            {txToEdit ? 'Save Changes' : 'Post Entry'}
+            {txToEdit ? 'Update Vault' : 'Secure Transaction'}
           </button>
         </form>
       </div>
@@ -300,77 +306,81 @@ const Transactions: React.FC = () => {
   };
 
   return (
-    <div className="w-full flex flex-col min-h-full">
-      <div className="pt-6 pb-4 px-1 flex flex-col gap-4">
+    <div className="w-full flex flex-col min-h-full pb-20">
+      <div className="pt-4 pb-6 px-1 flex flex-col gap-6">
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex flex-col">
             <h1 className="text-3xl font-black tracking-tighter text-slate-900 dark:text-white leading-tight">Activity</h1>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mt-0.5">Stream of Transactions</p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-[0.2em] mt-0.5">Stream of Wealth</p>
           </div>
           <button 
             onClick={() => { setTxToEdit(null); setIsTxModalOpen(true); }}
-            className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30 active:scale-90 transition-transform"
+            className="w-12 h-12 rounded-[1.3rem] bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white shadow-premium shadow-blue-500/30 active:scale-90 transition-all hover:brightness-110"
           >
-            <Plus size={20} />
+            <Plus size={24} strokeWidth={2.5} />
           </button>
         </div>
 
-        <div className="flex p-1 bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-white/5 rounded-2xl shadow-sm">
+        {/* Custom Pill Tab Switcher */}
+        <div className="flex p-1.5 bg-white/40 dark:bg-slate-900/50 backdrop-blur-xl border border-white/30 dark:border-white/5 rounded-[1.8rem] shadow-premium">
           <button 
             onClick={() => setSubTab('history')}
-            className={`flex-1 py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 ${subTab === 'history' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400'}`}
+            className={`flex-1 py-3 rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${subTab === 'history' ? 'bg-blue-600 text-white shadow-glow' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
           >
-            <History size={14} />
-            History
+            <History size={16} />
+            Journal
           </button>
           <button 
             onClick={() => setSubTab('insights')}
-            className={`flex-1 py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 ${subTab === 'insights' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400'}`}
+            className={`flex-1 py-3 rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${subTab === 'insights' ? 'bg-blue-600 text-white shadow-glow' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
           >
-            <PieChart size={14} />
-            Insights
+            <Activity size={16} />
+            Analytics
           </button>
         </div>
       </div>
 
       <div className="flex-1 mt-2">
         {subTab === 'history' ? (
-          <div className="space-y-4 pb-20">
-            <div className="sticky top-0 z-20 bg-slate-50/80 dark:bg-[#020617]/80 backdrop-blur-md py-3 px-1">
+          <div className="space-y-6">
+            <div className="sticky top-0 z-20 pt-2 pb-4 px-1 bg-slate-50/80 dark:bg-[#020617]/80 backdrop-blur-2xl">
               <div className="relative group">
                 <input 
                   type="text"
-                  placeholder="Search notes, category or amount..."
-                  className="w-full bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 rounded-2xl py-3.5 pl-12 pr-6 font-bold text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm"
+                  placeholder="Filter by notes, category or sum..."
+                  className="w-full bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-[1.5rem] py-5 pl-14 pr-6 font-extrabold text-[15px] text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-500/10 transition-all shadow-premium placeholder:text-slate-400/60"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                <Search size={18} className={`absolute left-5 top-1/2 -translate-y-1/2 transition-colors ${searchQuery ? 'text-blue-500' : 'text-slate-400'}`} />
+                <Search size={20} className={`absolute left-6 top-1/2 -translate-y-1/2 transition-all duration-300 ${searchQuery ? 'text-blue-500 scale-110' : 'text-slate-400'}`} />
                 {searchQuery && (
                   <button 
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    className="absolute right-6 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 active:scale-90 transition-all"
                   >
-                    <X size={14} className="text-slate-400" />
+                    <X size={14} />
                   </button>
                 )}
               </div>
             </div>
 
             {isLoading ? (
-               <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-3">
-                  <Loader2 size={32} className="animate-spin" />
-                  <span className="text-xs font-bold uppercase tracking-widest">Loading Records...</span>
+               <div className="py-24 flex flex-col items-center justify-center text-slate-400 gap-4">
+                  <Loader2 size={40} className="animate-spin text-blue-500" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Scanning Vault...</span>
                </div>
             ) : filteredHistory.length === 0 ? (
-              <div className="py-20 flex flex-col items-center justify-center text-slate-400/40 gap-4">
-                <div className="w-16 h-16 rounded-full border-4 border-dashed border-current flex items-center justify-center">
-                   <CreditCard size={32} />
+              <div className="py-24 flex flex-col items-center justify-center text-slate-400/40 gap-6">
+                <div className="w-20 h-20 rounded-[2.5rem] border-4 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center">
+                   <CreditCard size={36} className="opacity-50" />
                 </div>
-                <p className="text-sm font-bold">{searchQuery ? 'No matching records' : 'No activity found yet'}</p>
+                <div className="text-center">
+                  <p className="text-sm font-extrabold text-slate-500 dark:text-slate-400">{searchQuery ? 'No matches found' : 'The vault is silent'}</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest mt-1">Start journalizing activity</p>
+                </div>
               </div>
             ) : (
-              <div className="space-y-3 px-1">
+              <div className="space-y-4 px-1">
                 {filteredHistory.map(tx => {
                   const p = portfolios.find(p => p.id === tx.portfolioId);
                   const isSelected = selectedTxId === tx.id;
@@ -384,49 +394,49 @@ const Transactions: React.FC = () => {
                       onMouseLeave={handleEndPress}
                       onTouchStart={() => handleStartPress(tx.id)}
                       onTouchEnd={handleEndPress}
-                      className={`relative bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-4 rounded-3xl flex items-center justify-between group shadow-sm transition-all duration-300 select-none overflow-hidden
-                        ${isPressing ? 'scale-[0.98] brightness-90' : 'animate-in fade-in slide-in-from-bottom-2 duration-300'}
+                      className={`relative bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-5 rounded-[2rem] flex items-center justify-between group shadow-premium transition-all duration-300 select-none overflow-hidden
+                        ${isPressing ? 'scale-[0.97] brightness-90 shadow-none' : 'animate-in fade-in slide-in-from-bottom-2 duration-500'}
                       `}
                     >
                       {isSelected && (
-                        <div className="absolute inset-0 z-30 bg-black/90 backdrop-blur-xl flex items-center justify-center gap-6 animate-in fade-in zoom-in duration-200 p-2">
+                        <div className="absolute inset-0 z-30 bg-black/95 backdrop-blur-2xl flex items-center justify-center gap-8 animate-in fade-in zoom-in duration-300 p-2">
                             <button 
                               onClick={(e) => { e.stopPropagation(); setTxToEdit(tx); setSelectedTxId(null); }}
-                              className="flex flex-col items-center gap-2 text-white group"
+                              className="flex flex-col items-center gap-2.5 text-white group"
                             >
-                              <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center group-active:scale-90 transition-transform"><Edit3 size={20} /></div>
-                              <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Edit</span>
+                              <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center group-active:scale-90 transition-transform shadow-glow"><Edit3 size={24} /></div>
+                              <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70">Adjust</span>
                             </button>
                             <button 
                               onClick={(e) => { e.stopPropagation(); handleDeleteTx(tx.id); }}
-                              className="flex flex-col items-center gap-2 text-rose-400 group"
+                              className="flex flex-col items-center gap-2.5 text-rose-400 group"
                             >
-                              <div className="w-12 h-12 rounded-full bg-rose-500/20 flex items-center justify-center group-active:scale-90 transition-transform"><Trash2 size={20} /></div>
-                              <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Delete</span>
+                              <div className="w-14 h-14 rounded-full bg-rose-500/20 flex items-center justify-center group-active:scale-90 transition-transform"><Trash2 size={24} /></div>
+                              <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70">Remove</span>
                             </button>
                             <button 
                               onClick={(e) => { e.stopPropagation(); setSelectedTxId(null); }}
-                              className="absolute top-3 right-4 p-1 text-white/40 hover:text-white"
+                              className="absolute top-4 right-6 p-2 text-white/40 hover:text-white active:scale-90"
                             >
-                              <X size={20} />
+                              <X size={24} />
                             </button>
                         </div>
                       )}
 
-                      <div className="flex items-center gap-4 flex-1">
-                        <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${tx.type === 'income' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                          {tx.type === 'income' ? <ArrowDownLeft size={22} /> : <ArrowUpRight size={22} />}
+                      <div className="flex items-center gap-5 flex-1 min-w-0">
+                        <div className={`w-12 h-12 rounded-[1.3rem] flex items-center justify-center shrink-0 shadow-sm ${tx.type === 'income' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-rose-500/15 text-rose-500'}`}>
+                          {tx.type === 'income' ? <ArrowDownLeft size={24} strokeWidth={2.5} /> : <ArrowUpRight size={24} strokeWidth={2.5} />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-black text-slate-900 dark:text-white text-sm tracking-tight truncate">{tx.category}</span>
-                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter shrink-0">{formatDate(tx.date)}</span>
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="font-extrabold text-slate-900 dark:text-white text-[15px] tracking-tight truncate">{tx.category}</span>
+                            <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest shrink-0">{formatDate(tx.date)}</span>
                           </div>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-bold tracking-tight line-clamp-1 italic">{tx.note || p?.name || 'Vantage Record'}</p>
+                          <p className="text-[12px] text-slate-500 dark:text-slate-400 font-bold tracking-tight line-clamp-1 italic opacity-70">{tx.note || p?.name || 'Local Record'}</p>
                         </div>
                       </div>
                       <div className="text-right pl-4">
-                        <span className={`font-black tabular-nums text-sm ${tx.type === 'income' ? 'text-emerald-500' : 'text-slate-900 dark:text-white'} ${settings.privacyMode ? 'blur-sm' : ''}`}>
+                        <span className={`font-black tabular-nums text-[16px] tracking-tight ${tx.type === 'income' ? 'text-emerald-500' : 'text-slate-900 dark:text-white'} ${settings.privacyMode ? 'blur-md opacity-40' : ''}`}>
                           {tx.type === 'income' ? '+' : '-'}{formatValue(tx.amount, p?.currency)}
                         </span>
                       </div>
@@ -437,18 +447,18 @@ const Transactions: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="space-y-6 pb-20 animate-in fade-in duration-300">
-            <div className="flex flex-wrap gap-2">
+          <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="flex flex-wrap gap-2.5 px-1">
               {[
-                { id: '7d', label: '7 Days' },
-                { id: '1m', label: '1 Month' },
-                { id: '1y', label: '1 Year' },
+                { id: '7d', label: '7D' },
+                { id: '1m', label: '1M' },
+                { id: '1y', label: '1Y' },
                 { id: 'custom', label: 'Custom' }
               ].map(range => (
                 <button 
                   key={range.id}
                   onClick={() => setTimeRange(range.id as any)}
-                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${timeRange === range.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-white dark:bg-slate-900/50 text-slate-500 border border-slate-100 dark:border-white/5'}`}
+                  className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all ${timeRange === range.id ? 'bg-blue-600 text-white shadow-glow' : 'bg-white dark:bg-slate-900/50 text-slate-500 border border-slate-200 dark:border-white/5 hover:border-blue-400'}`}
                 >
                   {range.label}
                 </button>
@@ -456,45 +466,52 @@ const Transactions: React.FC = () => {
             </div>
 
             {timeRange === 'custom' && (
-              <div className="grid grid-cols-2 gap-3 animate-in slide-in-from-top-2 duration-300">
+              <div className="grid grid-cols-2 gap-4 px-1 animate-in slide-in-from-top-2 duration-300">
                 <input 
                   type="date" 
-                  className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-white/5 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
+                  className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-2xl px-4 py-3 text-xs font-black uppercase text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20"
                   value={customRange.start}
                   onChange={(e) => setCustomRange({...customRange, start: e.target.value})}
                 />
                 <input 
                   type="date" 
-                  className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-white/5 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
+                  className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-2xl px-4 py-3 text-xs font-black uppercase text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20"
                   value={customRange.end}
                   onChange={(e) => setCustomRange({...customRange, end: e.target.value})}
                 />
               </div>
             )}
 
-            <div className="grid gap-4">
+            <div className="grid gap-5 px-1">
               {insightsData.length === 0 ? (
-                <div className="py-20 flex flex-col items-center justify-center opacity-30 text-slate-400">
-                   <BarChart3 size={40} className="mb-2" />
-                   <p className="text-xs font-bold uppercase tracking-widest">No data for this period</p>
+                <div className="py-24 flex flex-col items-center justify-center opacity-30 text-slate-400">
+                   <BarChart3 size={48} className="mb-4" />
+                   <p className="text-[10px] font-black uppercase tracking-widest">Awaiting Data Streams</p>
                 </div>
               ) : (
                 insightsData.map((data) => (
-                  <div key={`${data.category}_${data.currency}`} className="bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-5 rounded-3xl shadow-sm flex flex-col gap-3">
+                  <div key={`${data.category}_${data.currency}`} className="bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-6 rounded-[2.2rem] shadow-premium flex flex-col gap-4 group hover:scale-[1.02] transition-transform duration-300">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${data.type === 'income' ? 'bg-emerald-500' : 'bg-blue-500'}`}></div>
-                        <span className="font-black text-sm text-slate-900 dark:text-white tracking-tight">
-                          {data.category} ({data.currency})
+                        <div className={`w-2.5 h-2.5 rounded-full ${data.type === 'income' ? 'bg-emerald-500 shadow-glow shadow-emerald-500/30' : 'bg-blue-500 shadow-glow shadow-blue-500/30'}`}></div>
+                        <span className="font-black text-[15px] text-slate-900 dark:text-white tracking-tight">
+                          {data.category}
                         </span>
+                        <span className="text-[10px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg uppercase tracking-tighter">{data.currency}</span>
                       </div>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{data.count} txs</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100/50 dark:bg-slate-800/50 px-3 py-1 rounded-full">{data.count} Entries</span>
                     </div>
                     <div className="flex items-baseline gap-2">
-                       <span className={`text-xl font-black tabular-nums text-slate-900 dark:text-white ${settings.privacyMode ? 'blur-sm' : ''}`}>
+                       <span className={`text-2xl font-black tabular-nums text-slate-900 dark:text-white ${settings.privacyMode ? 'blur-md opacity-40' : ''}`}>
                         {formatValue(data.total, data.currency)}
                        </span>
-                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Accumulated</span>
+                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest opacity-60">Total volume</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                       <div 
+                         className={`h-full rounded-full transition-all duration-1000 ${data.type === 'income' ? 'bg-emerald-500' : 'bg-blue-600'}`} 
+                         style={{ width: '100%' }} // Simple indicator, can be dynamic based on max
+                       ></div>
                     </div>
                   </div>
                 ))

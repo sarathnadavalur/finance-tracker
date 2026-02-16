@@ -35,7 +35,16 @@
                 bg: '#020617',
                 surface: '#0f172a',
                 border: 'rgba(255, 255, 255, 0.05)'
+              },
+              brand: {
+                primary: '#3b82f6',
+                secondary: '#60a5fa',
+                accent: '#8b5cf6'
               }
+            },
+            boxShadow: {
+              'premium': '0 10px 40px -10px rgba(0, 0, 0, 0.1)',
+              'glow': '0 0 20px -5px rgba(59, 130, 246, 0.5)',
             }
           }
         }
@@ -54,6 +63,8 @@
             padding: 0;
             overflow: hidden;
             background-color: var(--bg-light);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         html.dark, html.dark body {
@@ -63,10 +74,9 @@
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
             -webkit-tap-highlight-color: transparent;
-            transition: background-color 0.3s ease, color 0.3s ease;
+            transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             user-select: none;
             touch-action: pan-x pan-y;
-            /* Ensure the body expands to fill the entire notch area */
             padding-top: env(safe-area-inset-top);
             padding-bottom: env(safe-area-inset-bottom);
             padding-left: env(safe-area-inset-left);
@@ -82,28 +92,47 @@
         }
 
         .glass {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(24px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
         }
         .dark .glass {
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(24px);
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .mesh-bg {
+            background-color: #020617;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.1) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, rgba(37, 99, 235, 0.1) 0px, transparent 50%);
         }
         
-        .glossy-blue { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }
+        .glossy-blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
         .glossy-green { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
         .glossy-red { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
         .glossy-orange { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
         
         @keyframes float {
             0% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
+            50% { transform: translateY(-8px); }
             100% { transform: translateY(0px); }
         }
         .animate-float {
-            animation: float 4s ease-in-out infinite;
+            animation: float 5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-soft {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .animate-pulse-soft {
+            animation: pulse-soft 3s ease-in-out infinite;
         }
 
         .no-scrollbar::-webkit-scrollbar {
@@ -116,6 +145,24 @@
 
         .scroll-container {
             -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+        }
+
+        /* Bottom Sheet Style Modal Animation */
+        .bottom-sheet-enter {
+            transform: translateY(100%);
+        }
+        .bottom-sheet-enter-active {
+            transform: translateY(0);
+            transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+
+        /* Modern interactive elements */
+        .tap-scale {
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .tap-scale:active {
+            transform: scale(0.96);
         }
     </style>
 <script type="importmap">
@@ -130,7 +177,7 @@
 }
 </script>
 </head>
-<body class="bg-slate-50 text-slate-900 dark:bg-[#020617] dark:text-slate-50">
+<body class="bg-slate-50 text-slate-900 dark:bg-[#020617] dark:text-slate-50 transition-colors duration-500">
     <div id="root"></div>
 </body>
 </html>

@@ -10,7 +10,8 @@ import {
   EyeOff,
   Sparkles,
   ShieldCheck,
-  History
+  History,
+  Activity
 } from 'lucide-react';
 import { Portfolio, Currency, UserProfile, AppSettings, ExchangeRates, Transaction } from './types';
 import { INITIAL_RATES } from './constants';
@@ -244,76 +245,78 @@ const App: React.FC = () => {
 
   return (
     <AppContext.Provider value={contextValue}>
-      <div className="h-full min-h-[100dvh] flex flex-col md:flex-row max-w-7xl mx-auto bg-slate-50 dark:bg-[#020617] transition-colors duration-300 antialiased overflow-hidden w-full relative">
+      <div className="h-full min-h-[100dvh] flex flex-col md:flex-row max-w-7xl mx-auto bg-slate-50 dark:bg-[#020617] transition-all duration-500 antialiased overflow-hidden w-full relative">
         {isLocked && <UnlockScreen profile={profile} onUnlock={() => setIsLocked(false)} />}
 
-        <header className="md:hidden pt-3 px-4 pb-3 flex justify-between items-center border-b border-slate-200 dark:border-white/5 shrink-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md sticky top-0 z-40 w-full">
+        {/* Mobile Header - More Glossy */}
+        <header className="md:hidden pt-4 px-5 pb-3 flex justify-between items-center shrink-0 bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl sticky top-0 z-40 w-full border-b border-white/20 dark:border-white/5">
           <div 
-            className="flex items-center gap-2 cursor-pointer active:opacity-70 transition-opacity flex-1"
+            className="flex items-center gap-3 cursor-pointer active:opacity-70 active:scale-95 transition-all flex-1"
             onClick={() => {
               setActiveTab('settings');
               setShouldOpenProfile(true);
               if (navigator.vibrate) navigator.vibrate(5);
             }}
           >
-            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white overflow-hidden font-black text-[10px]">
+            <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white overflow-hidden font-bold text-xs shadow-glow">
                {profile.firstName[0]}
             </div>
             <div className="flex flex-col">
-              <span className="font-black text-sm tracking-tight text-slate-900 dark:text-white leading-none">{profile.name}</span>
+              <span className="font-extrabold text-sm tracking-tight text-slate-900 dark:text-white leading-none">Vantage</span>
               <div className="flex items-center gap-1 mt-0.5">
                 <ShieldCheck size={10} className="text-emerald-500" />
-                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Local Vault Active</span>
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Secured Vault</span>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
             <button 
               onClick={() => {
                 setSettings(s => ({ ...s, privacyMode: !s.privacyMode }));
                 if (navigator.vibrate) navigator.vibrate(5);
               }}
-              className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className={`p-2 rounded-2xl transition-all duration-300 ${settings.privacyMode ? 'bg-rose-500/10 text-rose-500 ring-1 ring-rose-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}
             >
-              {settings.privacyMode ? <EyeOff size={18} className="text-rose-500" /> : <Eye size={18} className="text-slate-500" />}
+              {settings.privacyMode ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
         </header>
 
-        <nav className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border-t border-slate-200 dark:border-white/5 md:relative md:w-56 md:border-t-0 md:border-r md:bg-transparent z-30 pb-[env(safe-area-inset-bottom,0)] shrink-0">
-          <div className="flex md:flex-col justify-around md:justify-start items-center p-1.5 md:p-5 md:gap-2">
-            <div className="hidden md:flex flex-col gap-4 mb-8 w-full px-2">
+        {/* Navigation - Modern Floating Pill Design for Mobile */}
+        <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border border-white/30 dark:border-white/10 md:relative md:w-64 md:left-0 md:translate-x-0 md:bottom-0 md:border-none md:bg-transparent z-50 rounded-[2rem] px-2 py-2 shadow-premium md:shadow-none transition-all duration-500 md:flex md:flex-col md:items-stretch">
+          <div className="flex md:flex-col justify-between items-center md:items-start md:p-6 gap-1">
+            <div className="hidden md:flex flex-col gap-5 mb-10 w-full">
                <div 
-                  className="flex items-center gap-3 cursor-pointer active:opacity-70 transition-opacity"
+                  className="flex items-center gap-4 cursor-pointer active:opacity-70 transition-all p-2 rounded-3xl hover:bg-slate-100 dark:hover:bg-slate-800"
                   onClick={() => {
                     setActiveTab('settings');
                     setShouldOpenProfile(true);
                     if (navigator.vibrate) navigator.vibrate(5);
                   }}
                 >
-                  <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white overflow-hidden font-black">
+                  <div className="w-12 h-12 rounded-[1.2rem] bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white overflow-hidden font-black shadow-glow">
                      {profile.firstName[0]}
                   </div>
                   <div className="flex flex-col overflow-hidden">
-                    <span className="font-black text-lg tracking-tight text-slate-900 dark:text-white leading-none mb-1 truncate">{profile.name}</span>
+                    <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white leading-none mb-1 truncate">{profile.name}</span>
                     <div className="flex items-center gap-1">
-                      <ShieldCheck size={10} className="text-emerald-500" />
-                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest truncate">Local Vault</span>
+                      <ShieldCheck size={11} className="text-emerald-500" />
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] truncate">Vault Active</span>
                     </div>
                   </div>
                </div>
             </div>
 
-            <TabButton active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); if(navigator.vibrate) navigator.vibrate(5); }} icon={<LayoutDashboard size={22} />} label="Home" />
-            <TabButton active={activeTab === 'transactions'} onClick={() => { setActiveTab('transactions'); if(navigator.vibrate) navigator.vibrate(5); }} icon={<History size={22} />} label="Activity" />
-            <TabButton active={activeTab === 'portfolios'} onClick={() => { setActiveTab('portfolios'); if(navigator.vibrate) navigator.vibrate(5); }} icon={<Wallet size={22} />} label="Wallets" />
-            <TabButton active={activeTab === 'insights'} onClick={() => { setActiveTab('insights'); if(navigator.vibrate) navigator.vibrate(5); }} icon={<Sparkles size={22} />} label="AI Advisor" />
-            <TabButton active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); if(navigator.vibrate) navigator.vibrate(5); }} icon={<SettingsIcon size={22} />} label="Settings" />
+            <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Home" />
+            <TabButton active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} icon={<History size={20} />} label="Activity" />
+            <TabButton active={activeTab === 'portfolios'} onClick={() => setActiveTab('portfolios')} icon={<Wallet size={20} />} label="Assets" />
+            <TabButton active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon={<Sparkles size={20} />} label="AI" />
+            <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<SettingsIcon size={20} />} label="Prefs" />
           </div>
         </nav>
 
-        <main className="flex-1 overflow-y-auto pb-24 md:pb-6 scroll-smooth scroll-container no-scrollbar w-full">
-          <div className="w-full p-4 md:p-6 animate-in fade-in slide-in-from-bottom-2 duration-500 flex flex-col items-stretch">
+        <main className="flex-1 overflow-y-auto pb-32 md:pb-8 scroll-smooth scroll-container no-scrollbar w-full">
+          <div className="w-full px-4 pt-4 md:px-8 md:pt-8 animate-in fade-in slide-in-from-bottom-3 duration-700 flex flex-col items-stretch max-w-5xl mx-auto">
             {activeTab === 'dashboard' && <Dashboard />}
             {activeTab === 'transactions' && <Transactions />}
             {activeTab === 'portfolios' && <Portfolios />}
@@ -344,19 +347,28 @@ interface TabButtonProps {
   label: string;
 }
 
-const TabButton: React.FC<TabButtonProps> = ({ active, onClick, icon, label }) => (
-  <button 
-    onClick={onClick}
-    className={`
-      flex flex-col md:flex-row items-center gap-1 md:gap-3 p-2 md:px-3 md:py-2.5 rounded-xl w-full transition-all duration-300
-      ${active 
-        ? 'text-blue-600 md:bg-blue-50 dark:md:bg-blue-600/10 md:shadow-sm' 
-        : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}
-    `}
-  >
-    {icon}
-    <span className="text-[9px] md:text-sm font-bold tracking-tight">{label}</span>
-  </button>
-);
+const TabButton: React.FC<TabButtonProps> = ({ active, onClick, icon, label }) => {
+  const handleClick = () => {
+    onClick();
+    if (navigator.vibrate) navigator.vibrate(5);
+  };
+
+  return (
+    <button 
+      onClick={handleClick}
+      className={`
+        flex flex-col md:flex-row items-center gap-1.5 md:gap-4 p-2.5 md:px-4 md:py-3 rounded-[1.4rem] flex-1 md:w-full transition-all duration-300
+        ${active 
+          ? 'text-blue-600 bg-blue-50/50 dark:bg-blue-600/10 md:shadow-sm scale-100' 
+          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50'}
+      `}
+    >
+      <div className={`transition-transform duration-300 ${active ? 'scale-110' : 'scale-100'}`}>
+        {icon}
+      </div>
+      <span className={`text-[9px] md:text-[15px] font-black md:font-extrabold tracking-tight ${active ? 'opacity-100' : 'opacity-70'}`}>{label}</span>
+    </button>
+  );
+};
 
 export default App;
