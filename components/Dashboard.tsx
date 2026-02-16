@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useApp } from '../App';
 import { Currency, PortfolioType, Portfolio } from '../types';
@@ -5,10 +6,9 @@ import { Info, ChevronDown, Zap, Plus, Receipt, TrendingUp, TrendingDown, ArrowU
 import { GoogleGenAI } from '@google/genai';
 
 const Dashboard: React.FC = () => {
-  const { portfolios, baseCurrency, setBaseCurrency, rates, settings, setIsPortfolioModalOpen, setIsTxModalOpen, lastUpdated, isSyncing, vantageScore, setVantageScore, vantageAdvice, setVantageAdvice } = useApp();
+  const { portfolios, baseCurrency, setBaseCurrency, rates, settings, setIsPortfolioModalOpen, setIsTxModalOpen, lastUpdated, isSyncing, vantageScore, vantageAdvice, refreshVantageScore } = useApp();
   
-  // Local UI State
-  const [isScoring, setIsScoring] = useState(false);
+  // Local UI State for Modal
   const [showAdvicePopup, setShowAdvicePopup] = useState(false);
 
   const calculateRemainingEMI = (p: Portfolio) => {
@@ -54,47 +54,6 @@ const Dashboard: React.FC = () => {
       savingsPercentage: ((savings / totalAssets) * 100).toFixed(0) + '%'
     };
   }, [portfolios, baseCurrency, rates]);
-
-  // AI Score Calculation Logic
-  const refreshVantageScore = useCallback(async () => {
-    if (portfolios.length === 0 || isScoring) return;
-    setIsScoring(true);
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const summary = {
-        totalAssets: totals.savings + totals.investments,
-        totalLiabilities: totals.debt + totals.emiTotal,
-        portfolioCount: portfolios.length,
-        baseCurrency,
-        netWorth: totals.netValue
-      };
-
-      const response = await ai.models.generateContent({
-        model: settings.selectedModel || 'gemini-3-flash-preview',
-        contents: `Analyze this user's financial health.
-          Summary: ${JSON.stringify(summary)}
-          Return ONLY a JSON object: { "score": number (0-100), "advice": "One high-impact paragraph of financial advice. Be specific about their debt-to-savings ratio and trajectory." }
-          Scoring Logic: Higher net worth vs liabilities = better. Diversified portfolio = better. Low debt-to-asset ratio = better.`,
-        config: { responseMimeType: "application/json" }
-      });
-
-      const result = JSON.parse(response.text);
-      setVantageScore(result.score);
-      setVantageAdvice(result.advice);
-    } catch (error) {
-      console.error("Health Score Calculation Failed:", error);
-    } finally {
-      setIsScoring(false);
-    }
-  }, [portfolios, totals, baseCurrency, settings.selectedModel, isScoring, setVantageScore, setVantageAdvice]);
-
-  // Only refresh if we don't have a score yet (Caching behavior)
-  useEffect(() => {
-    if (vantageScore === null && portfolios.length > 0) {
-      const timer = setTimeout(refreshVantageScore, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [portfolios.length, vantageScore, refreshVantageScore]);
 
   const formatCurrency = (val: number) => {
     const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: baseCurrency, maximumFractionDigits: 0 }).format(val);
@@ -144,18 +103,15 @@ const Dashboard: React.FC = () => {
           <div className="flex items-center gap-6 relative z-10">
             {/* The Animated Gauge */}
             <div className="relative w-28 h-28 shrink-0 flex items-center justify-center">
-               {/* Internal Glow Layer */}
                <div className="absolute inset-0 rounded-full bg-blue-500/5 blur-xl pointer-events-none"></div>
                
                <svg viewBox="0 0 112 112" className="w-full h-full transform -rotate-90 relative z-10 block">
-                 {/* Track */}
                  <circle
                    cx="56" cy="56" r={radius}
                    fill="transparent"
                    stroke="rgba(255,255,255,0.05)"
                    strokeWidth="8"
                  />
-                 {/* Glowing Fill */}
                  <circle
                    cx="56" cy="56" r={radius}
                    fill="transparent"
@@ -163,16 +119,15 @@ const Dashboard: React.FC = () => {
                    strokeWidth="8"
                    strokeDasharray={circumference}
                    style={{ 
-                     strokeDashoffset: isScoring ? circumference : scoreOffset,
+                     strokeDashoffset: isSyncing ? circumference : scoreOffset,
                      transition: 'stroke-dashoffset 2s cubic-bezier(0.34, 1.56, 0.64, 1)' 
                    }}
                    className={`${getScoreColor(vantageScore || 0)} drop-shadow-[0_0_12px_rgba(59,130,246,0.5)]`}
                  />
                </svg>
 
-               {/* Absolute Center - Reduced font size further for better balance */}
                <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-                 {isScoring ? (
+                 {isSyncing ? (
                    <Loader2 size={20} className="animate-spin text-blue-500" />
                  ) : (
                    <span className="text-[38px] font-black text-white tracking-tighter tabular-nums leading-none">
@@ -189,18 +144,18 @@ const Dashboard: React.FC = () => {
               </div>
               
               <div 
-                onClick={() => !isScoring && vantageAdvice && setShowAdvicePopup(true)}
+                onClick={() => !isSyncing && vantageAdvice && setShowAdvicePopup(true)}
                 className="cursor-pointer active:opacity-70 transition-opacity"
               >
                 <p className="text-[15px] font-bold text-white leading-snug pr-2 line-clamp-2">
-                  {isScoring ? "Recalculating your trajectory..." : vantageAdvice || "Analyzing your portfolio for fresh insights..."}
+                  {isSyncing ? "Recalculating your trajectory..." : vantageAdvice || "Analyzing your portfolio for fresh insights..."}
                 </p>
-                {vantageAdvice && !isScoring && (
+                {vantageAdvice && !isSyncing && (
                   <span className="text-[9px] font-black text-blue-400/60 uppercase tracking-widest mt-1 block">Read Analysis • Tap to Expand</span>
                 )}
               </div>
 
-              {!isScoring && (
+              {!isSyncing && (
                 <button 
                   onClick={(e) => { e.stopPropagation(); refreshVantageScore(); }}
                   className="mt-1 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-400 transition-colors w-fit"
@@ -301,7 +256,6 @@ const Dashboard: React.FC = () => {
         <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-2xl flex items-end sm:items-center justify-center p-0 sm:p-6 animate-in fade-in duration-300">
           <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-[3rem] sm:rounded-[3rem] shadow-2xl animate-in slide-in-from-bottom duration-500 relative border border-white/10 max-h-[92dvh] overflow-hidden flex flex-col">
             
-            {/* Header Section */}
             <div className="p-8 pb-4 flex items-start justify-between shrink-0">
               <div className="flex flex-col">
                 <div className="flex items-center gap-3 mb-1">
@@ -322,7 +276,6 @@ const Dashboard: React.FC = () => {
               </button>
             </div>
             
-            {/* Content Area - Scrollable */}
             <div className="px-8 pb-8 overflow-y-auto no-scrollbar flex-1">
               <div className="bg-slate-50 dark:bg-slate-800/40 p-6 rounded-[2.5rem] border border-slate-100 dark:border-white/5 mb-8">
                 <p className="text-[17px] font-normal text-slate-700 dark:text-slate-200 leading-relaxed">
@@ -346,7 +299,6 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Footer Action - Removed Redundant 'Optimize Trajectory' Button */}
             <div className="p-8 pt-4 border-t border-slate-50 dark:border-white/5 shrink-0">
               <button 
                 onClick={() => setShowAdvicePopup(false)}

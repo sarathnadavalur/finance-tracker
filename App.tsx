@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
 import { 
   LayoutDashboard, 
@@ -13,7 +14,7 @@ import {
   Activity,
   Newspaper
 } from 'lucide-react';
-import { Portfolio, Currency, UserProfile, AppSettings, ExchangeRates, Transaction, Goal } from './types';
+import { Portfolio, Currency, UserProfile, AppSettings, ExchangeRates, Transaction, Goal, PortfolioType } from './types';
 import { INITIAL_RATES } from './constants';
 import { db } from './db';
 import Dashboard from './components/Dashboard';
@@ -26,6 +27,7 @@ import AuthGateway from './components/AuthGateway';
 import UnlockScreen from './components/UnlockScreen';
 import PortfolioForm from './components/PortfolioForm';
 import { TransactionModal } from './components/Transactions';
+import { GoogleGenAI } from '@google/genai';
 
 interface AppContextType {
   portfolios: Portfolio[];
@@ -60,6 +62,7 @@ interface AppContextType {
   vantageAdvice: string;
   setVantageAdvice: (advice: string) => void;
   isSyncing: boolean;
+  refreshVantageScore: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -97,6 +100,7 @@ const App: React.FC = () => {
   const [newsCache, setNewsCache] = useState<any[]>([]);
   const [vantageScore, setVantageScore] = useState<number | null>(null);
   const [vantageAdvice, setVantageAdvice] = useState<string>('');
+  const [lastCalculatedSummary, setLastCalculatedSummary] = useState<string>('');
 
   const backgroundTimeRef = useRef<number | null>(null);
   const lockGracePeriodRef = useRef<number>(3 * 60 * 1000); 
@@ -121,6 +125,75 @@ const App: React.FC = () => {
     if (savedSettings) setSettings(prev => ({ ...prev, ...savedSettings }));
   }, []);
 
+  const calculateFinancialSummary = useCallback(() => {
+    let savings = 0, investments = 0, debt = 0, emis = 0;
+    portfolios.forEach(p => {
+      const valInBase = p.currency === baseCurrency ? p.value : p.value * rates[p.currency][baseCurrency];
+      if (p.type === PortfolioType.SAVINGS) savings += valInBase;
+      if (p.type === PortfolioType.INVESTMENTS) investments += valInBase;
+      if (p.type === PortfolioType.DEBTS) debt += valInBase;
+      if (p.type === PortfolioType.EMIS) emis += valInBase;
+    });
+    return {
+      assets: savings + investments,
+      liabilities: debt + emis,
+      count: portfolios.length,
+      net: (savings + investments) - (debt + emis)
+    };
+  }, [portfolios, baseCurrency, rates]);
+
+  const refreshVantageScore = useCallback(async () => {
+    if (portfolios.length === 0 || isSyncing) return;
+    
+    const summaryData = calculateFinancialSummary();
+    const summaryString = JSON.stringify(summaryData);
+    
+    // Check if data actually changed to avoid fluctuating scores
+    if (vantageScore !== null && summaryString === lastCalculatedSummary) return;
+
+    setIsSyncing(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const response = await ai.models.generateContent({
+        model: settings.selectedModel || 'gemini-3-flash-preview',
+        contents: `Analyze financial health. Summary: ${summaryString}. Base Unit: ${baseCurrency}. Return JSON: { "score": 0-100, "advice": "One clear paragraph." }`,
+        config: { responseMimeType: "application/json" }
+      });
+      const result = JSON.parse(response.text);
+      setVantageScore(result.score);
+      setVantageAdvice(result.advice);
+      setLastCalculatedSummary(summaryString);
+    } catch (e) {
+      console.error("Pulse sync failed", e);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [portfolios, calculateFinancialSummary, isSyncing, vantageScore, lastCalculatedSummary, settings.selectedModel, baseCurrency]);
+
+  const fetchNewsInBackground = useCallback(async () => {
+    if (!profile?.trackedSymbols || profile.trackedSymbols.length === 0 || newsCache.length > 0) return;
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const response = await ai.models.generateContent({
+        model: settings.selectedModel || 'gemini-3-flash-preview',
+        contents: `Latest news and prices for: ${profile.trackedSymbols.join(', ')}. Return JSON array of NewsItem objects.`,
+        config: { tools: [{ googleSearch: {} }] }
+      });
+      const data = JSON.parse(response.text.replace(/```json/g, '').replace(/```/g, '').trim());
+      setNewsCache(data);
+    } catch (e) {
+      console.error("News sync failed", e);
+    }
+  }, [profile?.trackedSymbols, newsCache.length, settings.selectedModel]);
+
+  // Background Sync Effect: Triggers when user is authenticated
+  useEffect(() => {
+    if (isAuth && !isLocked && isReady) {
+      refreshVantageScore();
+      fetchNewsInBackground();
+    }
+  }, [isAuth, isLocked, isReady, refreshVantageScore, fetchNewsInBackground]);
+
   useEffect(() => {
     const initApp = async () => {
       try {
@@ -142,6 +215,7 @@ const App: React.FC = () => {
     setNewsCache([]);
     setVantageScore(null);
     setVantageAdvice('');
+    setLastCalculatedSummary('');
   };
 
   useEffect(() => {
@@ -193,8 +267,6 @@ const App: React.FC = () => {
   }, [settings, isReady]);
 
   const fetchRealRates = async () => {
-    if (isSyncing) return;
-    setIsSyncing(true);
     try {
       const response = await fetch('https://api.coinbase.com/v2/exchange-rates?currency=USD');
       if (!response.ok) throw new Error('Primary API failed');
@@ -215,31 +287,13 @@ const App: React.FC = () => {
         setLastUpdated(new Date());
       }
     } catch (error) {
-      try {
-        const fbResponse = await fetch('https://open.er-api.com/v6/latest/USD');
-        const fbJson = await fbResponse.json();
-        if (fbJson && fbJson.rates) {
-          const data = fbJson.rates;
-          const usdToCad = parseFloat(data.CAD);
-          const usdToInr = parseFloat(data.INR);
-          setRates({
-            USD: { USD: 1, CAD: usdToCad, INR: usdToInr },
-            CAD: { USD: 1 / usdToCad, CAD: 1, INR: usdToInr / usdToCad },
-            INR: { USD: 1 / usdToInr, CAD: usdToCad / usdToInr, INR: 1 }
-          });
-          setLastUpdated(new Date());
-        }
-      } catch (fbError) {
-        console.warn("Market Sync Failed - All endpoints unreachable", fbError);
-      }
-    } finally {
-      setIsSyncing(false);
+      console.warn("Market Sync Failed", error);
     }
   };
 
   useEffect(() => {
     fetchRealRates();
-    const interval = setInterval(fetchRealRates, 5000); 
+    const interval = setInterval(fetchRealRates, 30000); 
     return () => clearInterval(interval);
   }, []);
 
@@ -326,7 +380,8 @@ const App: React.FC = () => {
     setVantageScore,
     vantageAdvice,
     setVantageAdvice,
-    isSyncing
+    isSyncing,
+    refreshVantageScore
   };
 
   return (

@@ -38,7 +38,7 @@ const Portfolios: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Assets</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Accounts & smart financial goals</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Precision vault management</p>
         </div>
         
         {/* Switcher */}
@@ -68,13 +68,13 @@ const Portfolios: React.FC = () => {
 
             return (
               <section key={type} className="animate-in fade-in slide-in-from-left-2 duration-500">
-                <div className="flex items-center gap-3 mb-4">
-                  <h2 className="text-sm font-black tracking-tight text-slate-800 dark:text-slate-200 uppercase tracking-widest">{type}</h2>
+                <div className="flex items-center gap-3 mb-6 px-1">
+                  <h2 className="text-[11px] font-black tracking-[0.2em] text-slate-400 dark:text-slate-500 uppercase">{type}</h2>
                   <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800 opacity-50"></div>
-                  <span className="text-[10px] font-bold text-slate-400 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">{filtered.length}</span>
+                  <span className="text-[9px] font-black text-blue-500 px-2.5 py-1 bg-blue-500/5 rounded-full border border-blue-500/10">{filtered.length} Items</span>
                 </div>
                 
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+                <div className="flex flex-col gap-3">
                   {filtered.map(portfolio => (
                     <PortfolioCard 
                       key={portfolio.id} 
