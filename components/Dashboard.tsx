@@ -1,11 +1,16 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useApp } from '../App';
 import { Currency, PortfolioType, Portfolio } from '../types';
-import { Info, ChevronDown, Zap, Plus, Receipt, TrendingUp, TrendingDown, ArrowUpRight, RefreshCcw, Clock, Activity } from 'lucide-react';
+import { Info, ChevronDown, Zap, Plus, Receipt, TrendingUp, TrendingDown, ArrowUpRight, RefreshCcw, Clock, Activity, Sparkles, BrainCircuit, ShieldAlert, CheckCircle2, Loader2, X, AlertCircle } from 'lucide-react';
+import { GoogleGenAI } from '@google/genai';
 
 const Dashboard: React.FC = () => {
-  const { portfolios, baseCurrency, setBaseCurrency, rates, settings, setIsPortfolioModalOpen, setIsTxModalOpen, lastUpdated, isSyncing } = useApp();
+  const { portfolios, baseCurrency, setBaseCurrency, rates, settings, setIsPortfolioModalOpen, setIsTxModalOpen, lastUpdated, isSyncing, vantageScore, setVantageScore, vantageAdvice, setVantageAdvice } = useApp();
   
+  // Local UI State
+  const [isScoring, setIsScoring] = useState(false);
+  const [showAdvicePopup, setShowAdvicePopup] = useState(false);
+
   const calculateRemainingEMI = (p: Portfolio) => {
     if (p.type !== PortfolioType.EMIS || !p.totalEmiValue || !p.monthlyEmiAmount || !p.emiStartDate) {
       return p.value;
@@ -50,14 +55,66 @@ const Dashboard: React.FC = () => {
     };
   }, [portfolios, baseCurrency, rates]);
 
+  // AI Score Calculation Logic
+  const refreshVantageScore = useCallback(async () => {
+    if (portfolios.length === 0 || isScoring) return;
+    setIsScoring(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const summary = {
+        totalAssets: totals.savings + totals.investments,
+        totalLiabilities: totals.debt + totals.emiTotal,
+        portfolioCount: portfolios.length,
+        baseCurrency,
+        netWorth: totals.netValue
+      };
+
+      const response = await ai.models.generateContent({
+        model: settings.selectedModel || 'gemini-3-flash-preview',
+        contents: `Analyze this user's financial health.
+          Summary: ${JSON.stringify(summary)}
+          Return ONLY a JSON object: { "score": number (0-100), "advice": "One high-impact paragraph of financial advice. Be specific about their debt-to-savings ratio and trajectory." }
+          Scoring Logic: Higher net worth vs liabilities = better. Diversified portfolio = better. Low debt-to-asset ratio = better.`,
+        config: { responseMimeType: "application/json" }
+      });
+
+      const result = JSON.parse(response.text);
+      setVantageScore(result.score);
+      setVantageAdvice(result.advice);
+    } catch (error) {
+      console.error("Health Score Calculation Failed:", error);
+    } finally {
+      setIsScoring(false);
+    }
+  }, [portfolios, totals, baseCurrency, settings.selectedModel, isScoring, setVantageScore, setVantageAdvice]);
+
+  // Only refresh if we don't have a score yet (Caching behavior)
+  useEffect(() => {
+    if (vantageScore === null && portfolios.length > 0) {
+      const timer = setTimeout(refreshVantageScore, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [portfolios.length, vantageScore, refreshVantageScore]);
+
   const formatCurrency = (val: number) => {
     const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: baseCurrency, maximumFractionDigits: 0 }).format(val);
     return settings.privacyMode ? '••••••' : formatted;
   };
 
   const otherCurrencies = Object.values(Currency).filter(c => c !== baseCurrency);
-
   const formattedLastUpdated = lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  // Progress Gauge Helpers
+  const radius = 38;
+  const circumference = 2 * Math.PI * radius;
+  const scoreOffset = circumference - ((vantageScore || 0) / 100) * circumference;
+
+  const getScoreColor = (score: number) => {
+    if (score > 80) return 'text-blue-500';
+    if (score > 60) return 'text-emerald-500';
+    if (score > 40) return 'text-amber-500';
+    return 'text-rose-500';
+  };
 
   return (
     <div className="w-full space-y-8 flex flex-col items-stretch pb-10">
@@ -65,7 +122,6 @@ const Dashboard: React.FC = () => {
         <div className="flex items-center justify-between px-1">
           <div className="flex flex-col">
             <h1 className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white leading-tight">Overview</h1>
-            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 opacity-60">Session Pulse</p>
           </div>
           <div className="flex items-center gap-2 glass px-5 py-2.5 rounded-2xl border-white/40 shadow-sm tap-scale cursor-pointer">
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Unit</span>
@@ -78,6 +134,82 @@ const Dashboard: React.FC = () => {
               <option value={Currency.INR}>INR</option>
               <option value={Currency.USD}>USD</option>
             </select>
+          </div>
+        </div>
+
+        {/* AI Vantage Score Gauge - Centered & Refined */}
+        <div className="relative group overflow-hidden rounded-[2.8rem] bg-slate-950 p-6 shadow-2xl transition-all duration-500 hover:shadow-glow/20 border border-white/5">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 blur-[100px] pointer-events-none"></div>
+          
+          <div className="flex items-center gap-6 relative z-10">
+            {/* The Animated Gauge */}
+            <div className="relative w-28 h-28 shrink-0 flex items-center justify-center">
+               {/* Internal Glow Layer */}
+               <div className="absolute inset-0 rounded-full bg-blue-500/5 blur-xl pointer-events-none"></div>
+               
+               <svg viewBox="0 0 112 112" className="w-full h-full transform -rotate-90 relative z-10 block">
+                 {/* Track */}
+                 <circle
+                   cx="56" cy="56" r={radius}
+                   fill="transparent"
+                   stroke="rgba(255,255,255,0.05)"
+                   strokeWidth="8"
+                 />
+                 {/* Glowing Fill */}
+                 <circle
+                   cx="56" cy="56" r={radius}
+                   fill="transparent"
+                   stroke="currentColor"
+                   strokeWidth="8"
+                   strokeDasharray={circumference}
+                   style={{ 
+                     strokeDashoffset: isScoring ? circumference : scoreOffset,
+                     transition: 'stroke-dashoffset 2s cubic-bezier(0.34, 1.56, 0.64, 1)' 
+                   }}
+                   className={`${getScoreColor(vantageScore || 0)} drop-shadow-[0_0_12px_rgba(59,130,246,0.5)]`}
+                 />
+               </svg>
+
+               {/* Absolute Center - Reduced font size further for better balance */}
+               <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+                 {isScoring ? (
+                   <Loader2 size={20} className="animate-spin text-blue-500" />
+                 ) : (
+                   <span className="text-[38px] font-black text-white tracking-tighter tabular-nums leading-none">
+                     {vantageScore || '—'}
+                   </span>
+                 )}
+               </div>
+            </div>
+
+            <div className="flex flex-col flex-1 gap-1.5 min-w-0">
+              <div className="flex items-center gap-2">
+                <Sparkles size={14} className="text-blue-400 animate-pulse" />
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">AI Vantage Pulse</span>
+              </div>
+              
+              <div 
+                onClick={() => !isScoring && vantageAdvice && setShowAdvicePopup(true)}
+                className="cursor-pointer active:opacity-70 transition-opacity"
+              >
+                <p className="text-[15px] font-bold text-white leading-snug pr-2 line-clamp-2">
+                  {isScoring ? "Recalculating your trajectory..." : vantageAdvice || "Analyzing your portfolio for fresh insights..."}
+                </p>
+                {vantageAdvice && !isScoring && (
+                  <span className="text-[9px] font-black text-blue-400/60 uppercase tracking-widest mt-1 block">Read Analysis • Tap to Expand</span>
+                )}
+              </div>
+
+              {!isScoring && (
+                <button 
+                  onClick={(e) => { e.stopPropagation(); refreshVantageScore(); }}
+                  className="mt-1 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-400 transition-colors w-fit"
+                >
+                  <RefreshCcw size={10} />
+                  Resync Health
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -110,7 +242,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       <div className="flex flex-col gap-5">
-        {/* Net Worth Card - iOS 17 Premium Mesh Gradient */}
+        {/* Net Worth Card */}
         <div className="relative overflow-hidden rounded-[3rem] py-12 px-10 md:py-16 md:px-14 text-white shadow-2xl mesh-bg group transition-all duration-700 hover:shadow-glow tap-scale cursor-pointer border-0.5 border-white/20">
           <div className="absolute top-0 right-0 w-80 h-80 bg-white/20 rounded-full blur-[120px] -mr-40 -mt-40 group-hover:scale-125 transition-transform duration-1000"></div>
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-400/20 rounded-full blur-[100px] -ml-32 -mb-32 group-hover:scale-125 transition-transform duration-1000"></div>
@@ -145,7 +277,7 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Distribution Breakdown - More Stylish Glass Cards */}
+      {/* Distribution Breakdown */}
       <div className="glass rounded-[3rem] p-10 shadow-premium">
         <div className="flex items-center justify-between mb-10">
           <div className="flex flex-col">
@@ -163,6 +295,69 @@ const Dashboard: React.FC = () => {
           <TableRows label="Liabilities" amount={totals.debt + totals.emiTotal} percentage="Owed" color="bg-rose-500" currency={baseCurrency} isPrivate={settings.privacyMode} />
         </div>
       </div>
+
+      {/* AI Advice Popup Modal - Mobile Optimized */}
+      {showAdvicePopup && (
+        <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-2xl flex items-end sm:items-center justify-center p-0 sm:p-6 animate-in fade-in duration-300">
+          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-[3rem] sm:rounded-[3rem] shadow-2xl animate-in slide-in-from-bottom duration-500 relative border border-white/10 max-h-[92dvh] overflow-hidden flex flex-col">
+            
+            {/* Header Section */}
+            <div className="p-8 pb-4 flex items-start justify-between shrink-0">
+              <div className="flex flex-col">
+                <div className="flex items-center gap-3 mb-1">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600">
+                    <Sparkles size={24} className="animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">Vantage Analysis</h3>
+                    <p className="text-[9px] font-black uppercase tracking-[0.25em] text-blue-500">AI Health Report</p>
+                  </div>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowAdvicePopup(false)}
+                className="p-3 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 active:scale-90 transition-all shadow-sm"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            {/* Content Area - Scrollable */}
+            <div className="px-8 pb-8 overflow-y-auto no-scrollbar flex-1">
+              <div className="bg-slate-50 dark:bg-slate-800/40 p-6 rounded-[2.5rem] border border-slate-100 dark:border-white/5 mb-8">
+                <p className="text-[17px] font-normal text-slate-700 dark:text-slate-200 leading-relaxed">
+                  {vantageAdvice}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/20 p-6 rounded-[2.2rem] border border-slate-100 dark:border-white/5">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-60">Calculated Score</span>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-full ${getScoreColor(vantageScore || 0)} shadow-glow`}></div>
+                    <span className={`text-4xl font-black tracking-tighter tabular-nums ${getScoreColor(vantageScore || 0)}`}>
+                      {vantageScore}%
+                    </span>
+                  </div>
+                </div>
+                <div className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-900 flex items-center justify-center shadow-inner-light">
+                   <Activity size={24} className="text-slate-300" />
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Action - Removed Redundant 'Optimize Trajectory' Button */}
+            <div className="p-8 pt-4 border-t border-slate-50 dark:border-white/5 shrink-0">
+              <button 
+                onClick={() => setShowAdvicePopup(false)}
+                className="w-full bg-slate-100 dark:bg-slate-800 text-slate-500 font-black py-5 rounded-[1.8rem] active:scale-[0.98] transition-all text-xs uppercase tracking-widest"
+              >
+                Done Reading
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -55,6 +55,10 @@ interface AppContextType {
   setIsPortfolioModalOpen: (val: boolean) => void;
   newsCache: any[];
   setNewsCache: (news: any[]) => void;
+  vantageScore: number | null;
+  setVantageScore: (score: number | null) => void;
+  vantageAdvice: string;
+  setVantageAdvice: (advice: string) => void;
   isSyncing: boolean;
 }
 
@@ -91,6 +95,8 @@ const App: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   
   const [newsCache, setNewsCache] = useState<any[]>([]);
+  const [vantageScore, setVantageScore] = useState<number | null>(null);
+  const [vantageAdvice, setVantageAdvice] = useState<string>('');
 
   const backgroundTimeRef = useRef<number | null>(null);
   const lockGracePeriodRef = useRef<number>(3 * 60 * 1000); 
@@ -134,6 +140,8 @@ const App: React.FC = () => {
     setIsLocked(false);
     backgroundTimeRef.current = null;
     setNewsCache([]);
+    setVantageScore(null);
+    setVantageAdvice('');
   };
 
   useEffect(() => {
@@ -314,6 +322,10 @@ const App: React.FC = () => {
     setIsPortfolioModalOpen,
     newsCache,
     setNewsCache,
+    vantageScore,
+    setVantageScore,
+    vantageAdvice,
+    setVantageAdvice,
     isSyncing
   };
 
@@ -335,7 +347,7 @@ const App: React.FC = () => {
                {profile.firstName[0]}
             </div>
             <div className="flex flex-col">
-              <span className="font-black text-sm tracking-tight text-slate-900 dark:text-white leading-none">Vantage</span>
+              <span className="font-black text-sm tracking-tight text-slate-900 dark:text-white leading-none">{profile.name}</span>
               <div className="flex items-center gap-1 mt-0.5">
                 <ShieldCheck size={10} className="text-emerald-500" />
                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Vault Secured</span>
