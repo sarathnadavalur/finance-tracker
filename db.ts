@@ -1,14 +1,15 @@
 
-import { Portfolio, UserProfile, AppSettings, Transaction, Goal } from './types';
+import { Portfolio, UserProfile, AppSettings, Transaction, Goal, Trade } from './types';
 
 const DB_NAME = 'VantageDB';
-const DB_VERSION = 3; // Incremented version for new store
+const DB_VERSION = 4; // Upgraded for Trading Store
 const STORES = {
   PORTFOLIOS: 'portfolios',
   PROFILE: 'profile',
   SETTINGS: 'settings',
   TRANSACTIONS: 'transactions',
-  GOALS: 'goals'
+  GOALS: 'goals',
+  TRADES: 'trades'
 };
 
 export class InternalDB {
@@ -42,8 +43,23 @@ export class InternalDB {
         if (!db.objectStoreNames.contains(STORES.GOALS)) {
           db.createObjectStore(STORES.GOALS, { keyPath: 'id' });
         }
+        if (!db.objectStoreNames.contains(STORES.TRADES)) {
+          db.createObjectStore(STORES.TRADES, { keyPath: 'id' });
+        }
       };
     });
+  }
+
+  async getAllTrades(): Promise<Trade[]> {
+    return this.getAll<Trade>(STORES.TRADES);
+  }
+
+  async saveTrade(t: Trade): Promise<void> {
+    return this.put(STORES.TRADES, t);
+  }
+
+  async deleteTrade(id: string): Promise<void> {
+    return this.delete(STORES.TRADES, id);
   }
 
   async getAllPortfolios(): Promise<Portfolio[]> {
@@ -123,7 +139,7 @@ export class InternalDB {
 
   async clearAll(): Promise<void> {
     if (!this.db) return;
-    const stores = [STORES.PORTFOLIOS, STORES.PROFILE, STORES.SETTINGS, STORES.TRANSACTIONS, STORES.GOALS];
+    const stores = [STORES.PORTFOLIOS, STORES.PROFILE, STORES.SETTINGS, STORES.TRANSACTIONS, STORES.GOALS, STORES.TRADES];
     const tx = this.db.transaction(stores, 'readwrite');
     stores.forEach(s => tx.objectStore(s).clear());
     return new Promise((resolve) => {

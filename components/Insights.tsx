@@ -11,9 +11,9 @@ interface Message {
 }
 
 const Insights: React.FC = () => {
-  const { portfolios, baseCurrency, profile, settings, addPortfolio, deletePortfolio } = useApp();
+  const { portfolios, baseCurrency, profile, settings, addPortfolio, deletePortfolio, ensureApiKey, addLog } = useApp();
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'ai', content: `Hello **${profile.name}**! I'm your **Vantage AI** advisor. I've analyzed your **${portfolios.length}** portfolios. How can I help you grow your wealth today?` }
+    { role: 'ai', content: `Hello **${profile?.name || 'there'}**! I'm your **Vantage AI** advisor. I've analyzed your **${portfolios.length}** portfolios. How can I help you grow your wealth today?` }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -26,15 +26,20 @@ const Insights: React.FC = () => {
   }, [messages, isLoading]);
 
   const handleQuery = async (query: string) => {
-    if (!query.trim() || isLoading) return;
+    if (!query.trim() || isLoading || !profile) return;
+
+    if (!(await ensureApiKey())) return;
 
     const userMsg = { role: 'user' as const, content: query };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
+    addLog(`User query initiated: "${query.substring(0, 30)}..."`, "info", "AI Hub");
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      // STRICT: prioritize the manual key
+      const apiKeyToUse = profile?.customApiKey || process.env.API_KEY || '';
+      const ai = new GoogleGenAI({ apiKey: apiKeyToUse });
       const model = settings.selectedModel || 'gemini-3-flash-preview';
 
       const createPortfolioTool: FunctionDeclaration = {
@@ -96,6 +101,7 @@ const Insights: React.FC = () => {
       let finalContent = response.text || "";
 
       if (response.functionCalls) {
+        addLog(`AI requested ${response.functionCalls.length} function calls`, "info", "AI Hub");
         for (const call of response.functionCalls) {
           if (call.name === 'createPortfolio') {
             const args = call.args as any;
@@ -107,6 +113,7 @@ const Insights: React.FC = () => {
               value: args.value
             });
             if (!finalContent) finalContent = `✅ Added **${args.name}** to your ${args.type} portfolios with a value of ${args.currency} ${args.value}.`;
+            addLog(`Tool Executed: createPortfolio (${args.name})`, "info", "AI Hub");
           }
 
           if (call.name === 'deletePortfolio') {
@@ -115,8 +122,10 @@ const Insights: React.FC = () => {
             if (target) {
               deletePortfolio(target.id);
               if (!finalContent) finalContent = `🗑️ Deleted the **${target.name}** portfolio as requested.`;
+              addLog(`Tool Executed: deletePortfolio (${target.name})`, "info", "AI Hub");
             } else {
               if (!finalContent) finalContent = `I couldn't find a portfolio named "${args.name}" to delete.`;
+              addLog(`Tool Failed: deletePortfolio (Target ${args.name} not found)`, "error", "AI Hub");
             }
           }
         }
@@ -127,9 +136,10 @@ const Insights: React.FC = () => {
       }
 
       setMessages(prev => [...prev, { role: 'ai', content: finalContent }]);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      setMessages(prev => [...prev, { role: 'ai', content: "Connection to the Vantage Core was interrupted. Please check your network." }]);
+      addLog(`Chat Insight critical failure: ${error.message}`, "error", "AI Hub");
+      setMessages(prev => [...prev, { role: 'ai', content: "Connection to the Vantage Core was interrupted. Please check your network or API settings." }]);
     } finally {
       setIsLoading(false);
     }

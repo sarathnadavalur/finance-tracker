@@ -48,6 +48,15 @@ export interface Portfolio {
   updatedAt: number;
 }
 
+export interface Trade {
+  id: string;
+  symbol: string;
+  avgCost: number;
+  quantity: number;
+  currency: Currency;
+  updatedAt: number;
+}
+
 export interface Goal {
   id: string;
   name: string;
@@ -57,6 +66,13 @@ export interface Goal {
   deadline?: string;
   color: string;
   updatedAt: number;
+}
+
+export interface LogEntry {
+  timestamp: number;
+  message: string;
+  type: 'error' | 'info';
+  context?: string;
 }
 
 export interface UserProfile {
@@ -75,6 +91,7 @@ export interface UserProfile {
   syncEnabled?: boolean;
   lastCloudSync?: number;
   trackedSymbols?: string[];
+  customApiKey?: string;
 }
 
 export interface AppSettings {
@@ -83,6 +100,7 @@ export interface AppSettings {
   privacyMode: boolean;
   autoSync: boolean;
   selectedModel: string;
+  developerMode: boolean;
 }
 
 export interface ExchangeRates {

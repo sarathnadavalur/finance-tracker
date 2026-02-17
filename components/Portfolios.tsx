@@ -7,6 +7,7 @@ import PortfolioCard from './PortfolioCard';
 import PortfolioForm from './PortfolioForm';
 import GoalCard from './GoalCard';
 import GoalForm from './GoalForm';
+import GoalDetails from './GoalDetails';
 
 const Portfolios: React.FC = () => {
   const { portfolios, goals } = useApp();
@@ -15,6 +16,7 @@ const Portfolios: React.FC = () => {
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [editingPortfolio, setEditingPortfolio] = useState<Portfolio | null>(null);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
+  const [selectedGoalDetails, setSelectedGoalDetails] = useState<Goal | null>(null);
 
   const segments = [
     PortfolioType.SAVINGS,
@@ -42,7 +44,7 @@ const Portfolios: React.FC = () => {
         </div>
         
         {/* Switcher */}
-        <div className="flex p-1 bg-white/40 dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 dark:border-white/5 rounded-2xl shadow-sm self-start">
+        <div className="flex p(1) bg-white/40 dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 dark:border-white/5 rounded-2xl shadow-sm self-start">
           <button 
             onClick={() => setActiveSubTab('accounts')}
             className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeSubTab === 'accounts' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-400'}`}
@@ -98,7 +100,12 @@ const Portfolios: React.FC = () => {
         <div className="animate-in fade-in duration-500">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {goals.map(goal => (
-              <GoalCard key={goal.id} goal={goal} onEdit={() => handleEditGoal(goal)} />
+              <GoalCard 
+                key={goal.id} 
+                goal={goal} 
+                onEdit={() => handleEditGoal(goal)} 
+                onViewDetails={() => setSelectedGoalDetails(goal)}
+              />
             ))}
           </div>
 
@@ -139,6 +146,13 @@ const Portfolios: React.FC = () => {
         <GoalForm 
           onClose={() => { setIsGoalModalOpen(false); setEditingGoal(null); }} 
           editingGoal={editingGoal || undefined}
+        />
+      )}
+
+      {selectedGoalDetails && (
+        <GoalDetails 
+          goal={selectedGoalDetails} 
+          onClose={() => setSelectedGoalDetails(null)} 
         />
       )}
     </div>

@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Target, X, Edit3, Trash2, Trophy, MoreVertical, Calendar, ChevronRight } from 'lucide-react';
 import { Goal, Currency } from '../types';
@@ -6,9 +7,10 @@ import { useApp } from '../App';
 interface GoalCardProps {
   goal: Goal;
   onEdit: () => void;
+  onViewDetails: () => void;
 }
 
-const GoalCard: React.FC<GoalCardProps> = ({ goal, onEdit }) => {
+const GoalCard: React.FC<GoalCardProps> = ({ goal, onEdit, onViewDetails }) => {
   const { portfolios, rates, settings, deleteGoal } = useApp();
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -134,7 +136,7 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onEdit }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-5 mt-4 p-6 bg-white/40 dark:bg-slate-950/30 rounded-[2.2rem] border border-white/40 dark:border-white/5 shadow-inner-dark">
+      <div className="grid grid-cols-2 gap-5 mt-4 p(6) bg-white/40 dark:bg-slate-950/30 rounded-[2.2rem] border border-white/40 dark:border-white/5 shadow-inner-dark">
          <div className="flex flex-col">
             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1.5 opacity-60">Currently Saved</span>
             <span className={`text-[19px] font-black text-slate-900 dark:text-white tabular-nums tracking-tighter leading-tight ${settings.privacyMode ? 'blur-md' : ''}`}>
@@ -151,7 +153,10 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onEdit }) => {
 
       <div className="mt-6 flex items-center justify-between px-2">
          <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] opacity-60">{goal.portfolioIds.length} Connected Accounts</span>
-         <button className="flex items-center gap-2 text-[10px] font-black text-blue-600 uppercase tracking-widest hover:translate-x-1.5 transition-all">
+         <button 
+            onClick={onViewDetails}
+            className="flex items-center gap-2 text-[10px] font-black text-blue-600 uppercase tracking-widest hover:translate-x-1.5 transition-all"
+         >
             Full Details <ChevronRight size={14} />
          </button>
       </div>

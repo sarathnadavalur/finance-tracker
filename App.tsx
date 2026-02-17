@@ -12,9 +12,13 @@ import {
   ShieldCheck,
   History,
   Activity,
-  Newspaper
+  Newspaper,
+  AlertTriangle,
+  Key,
+  Terminal,
+  BarChart3
 } from 'lucide-react';
-import { Portfolio, Currency, UserProfile, AppSettings, ExchangeRates, Transaction, Goal, PortfolioType } from './types';
+import { Portfolio, Currency, UserProfile, AppSettings, ExchangeRates, Transaction, Goal, PortfolioType, LogEntry, Trade } from './types';
 import { INITIAL_RATES } from './constants';
 import { db } from './db';
 import Dashboard from './components/Dashboard';
@@ -23,6 +27,7 @@ import Settings from './components/Settings';
 import Insights from './components/Insights';
 import Transactions from './components/Transactions';
 import LatestNews from './components/LatestNews';
+import Trading from './components/Trading';
 import AuthGateway from './components/AuthGateway';
 import UnlockScreen from './components/UnlockScreen';
 import PortfolioForm from './components/PortfolioForm';
@@ -35,6 +40,11 @@ interface AppContextType {
   addPortfolio: (p: Omit<Portfolio, 'updatedAt'>) => void;
   updatePortfolio: (p: Portfolio) => void;
   deletePortfolio: (id: string) => void;
+  trades: Trade[];
+  setTrades: React.Dispatch<React.SetStateAction<Trade[]>>;
+  addTrade: (t: Omit<Trade, 'updatedAt'>) => void;
+  updateTrade: (t: Trade) => void;
+  deleteTrade: (id: string) => void;
   goals: Goal[];
   setGoals: React.Dispatch<React.SetStateAction<Goal[]>>;
   addGoal: (g: Omit<Goal, 'updatedAt'>) => void;
@@ -42,8 +52,8 @@ interface AppContextType {
   deleteGoal: (id: string) => void;
   baseCurrency: Currency;
   setBaseCurrency: (c: Currency) => void;
-  profile: UserProfile;
-  setProfile: (p: UserProfile) => void;
+  profile: UserProfile | null;
+  setProfile: (p: UserProfile | null) => void;
   settings: AppSettings;
   setSettings: (s: AppSettings) => void;
   rates: ExchangeRates;
@@ -52,7 +62,7 @@ interface AppContextType {
   reloadData: () => Promise<void>;
   shouldOpenProfile: boolean;
   setShouldOpenProfile: (val: boolean) => void;
-  setActiveTab: (tab: 'dashboard' | 'transactions' | 'portfolios' | 'settings' | 'insights' | 'news') => void;
+  setActiveTab: (tab: TabType) => void;
   setIsTxModalOpen: (val: boolean) => void;
   setIsPortfolioModalOpen: (val: boolean) => void;
   newsCache: any[];
@@ -62,8 +72,16 @@ interface AppContextType {
   vantageAdvice: string;
   setVantageAdvice: (advice: string) => void;
   isSyncing: boolean;
-  refreshVantageScore: () => Promise<void>;
+  refreshVantageScore: (force?: boolean) => Promise<void>;
+  isAiRestricted: boolean;
+  hasApiKey: boolean;
+  ensureApiKey: () => Promise<boolean>;
+  logs: LogEntry[];
+  addLog: (msg: string, type?: 'error' | 'info', context?: string) => void;
+  clearLogs: () => void;
 }
+
+type TabType = 'dashboard' | 'transactions' | 'portfolios' | 'settings' | 'insights' | 'news' | 'trading';
 
 const AppContext = createContext<AppContextType | null>(null);
 
@@ -73,16 +91,19 @@ export const useApp = () => {
   return context;
 };
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 const App: React.FC = () => {
   const [isReady, setIsReady] = useState(false);
   const [isAuth, setIsAuth] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'portfolios' | 'settings' | 'insights' | 'news'>('dashboard');
+  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [shouldOpenProfile, setShouldOpenProfile] = useState(false);
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [isPortfolioModalOpen, setIsPortfolioModalOpen] = useState(false);
   
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
+  const [trades, setTrades] = useState<Trade[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [baseCurrency, setBaseCurrency] = useState<Currency>(Currency.CAD);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -91,30 +112,52 @@ const App: React.FC = () => {
     fontSize: 16, 
     privacyMode: false, 
     autoSync: true,
-    selectedModel: 'gemini-3-flash-preview'
+    selectedModel: 'gemini-3-flash-preview',
+    developerMode: false
   });
   const [rates, setRates] = useState<ExchangeRates>(INITIAL_RATES);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isAiRestricted, setIsAiRestricted] = useState(false);
+  const [showKeyWarning, setShowKeyWarning] = useState(false);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   
   const [newsCache, setNewsCache] = useState<any[]>([]);
   const [vantageScore, setVantageScore] = useState<number | null>(null);
   const [vantageAdvice, setVantageAdvice] = useState<string>('');
-  const [lastCalculatedSummary, setLastCalculatedSummary] = useState<string>('');
 
   const backgroundTimeRef = useRef<number | null>(null);
   const lockGracePeriodRef = useRef<number>(3 * 60 * 1000); 
 
+  const hasApiKey = !!(profile?.customApiKey);
+
+  const addLog = useCallback((message: string, type: 'error' | 'info' = 'info', context?: string) => {
+    setLogs(prev => [{ timestamp: Date.now(), message, type, context }, ...prev].slice(0, 100));
+  }, []);
+
+  const clearLogs = useCallback(() => setLogs([]), []);
+
+  const ensureApiKey = async (): Promise<boolean> => {
+    if (!profile?.customApiKey) {
+      addLog("AI action blocked: Missing API Key", "error", "Security Guard");
+      setShowKeyWarning(true);
+      return false;
+    }
+    return true;
+  };
+
   const reloadData = useCallback(async () => {
-    const [savedPortfolios, savedGoals, savedProfile, savedSettings] = await Promise.all([
+    const [savedPortfolios, savedGoals, savedProfile, savedSettings, savedTrades] = await Promise.all([
       db.getAllPortfolios(),
       db.getAllGoals(),
       db.getProfile(),
-      db.getSettings()
+      db.getSettings(),
+      db.getAllTrades()
     ]);
     
     if (savedPortfolios) setPortfolios(savedPortfolios);
     if (savedGoals) setGoals(savedGoals);
+    if (savedTrades) setTrades(savedTrades);
     if (savedProfile) {
       setProfile(savedProfile);
       setIsAuth(true);
@@ -142,57 +185,62 @@ const App: React.FC = () => {
     };
   }, [portfolios, baseCurrency, rates]);
 
-  const refreshVantageScore = useCallback(async () => {
+  const callAiWithRetry = async (fn: () => Promise<any>, retries = 3, delay = 2000) => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        return await fn();
+      } catch (e: any) {
+        const errorMsg = e.message || JSON.stringify(e);
+        addLog(`AI call failed (attempt ${i + 1}): ${errorMsg}`, "error", "Vantage Core");
+        
+        if (errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED')) {
+          setIsAiRestricted(true);
+          if (i === retries - 1) throw e;
+          await sleep(delay * Math.pow(2, i));
+        } else if (errorMsg.includes('API key not valid') || errorMsg.includes('invalid api key') || errorMsg.includes('401')) {
+          setShowKeyWarning(true);
+          throw e;
+        } else {
+          throw e;
+        }
+      }
+    }
+  };
+
+  const refreshVantageScore = useCallback(async (force: boolean = false) => {
     if (portfolios.length === 0 || isSyncing) return;
-    
-    const summaryData = calculateFinancialSummary();
-    const summaryString = JSON.stringify(summaryData);
-    
-    // Check if data actually changed to avoid fluctuating scores
-    if (vantageScore !== null && summaryString === lastCalculatedSummary) return;
+    if (!force) return;
+
+    if (!(await ensureApiKey())) return;
 
     setIsSyncing(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: settings.selectedModel || 'gemini-3-flash-preview',
-        contents: `Analyze financial health. Summary: ${summaryString}. Base Unit: ${baseCurrency}. Return JSON: { "score": 0-100, "advice": "One clear paragraph." }`,
-        config: { responseMimeType: "application/json" }
-      });
-      const result = JSON.parse(response.text);
-      setVantageScore(result.score);
-      setVantageAdvice(result.advice);
-      setLastCalculatedSummary(summaryString);
-    } catch (e) {
+      const summaryData = calculateFinancialSummary();
+      const apiKeyToUse = profile?.customApiKey || process.env.API_KEY || '';
+      const ai = new GoogleGenAI({ apiKey: apiKeyToUse });
+      
+      const response = await callAiWithRetry(() => 
+        ai.models.generateContent({
+          model: settings.selectedModel || 'gemini-3-flash-preview',
+          contents: `Analyze financial health. Summary: ${JSON.stringify(summaryData)}. Base Unit: ${baseCurrency}. Return JSON: { "score": 0-100, "advice": "One clear paragraph." }`,
+          config: { responseMimeType: "application/json" }
+        })
+      );
+
+      if (response && response.text) {
+        const result = JSON.parse(response.text);
+        setVantageScore(result.score);
+        setVantageAdvice(result.advice);
+        setIsAiRestricted(false);
+        addLog("Vantage Pulse score updated successfully", "info", "Health Check");
+      }
+    } catch (e: any) {
       console.error("Pulse sync failed", e);
+      addLog(`Pulse Analysis Critical failure: ${e.message}`, "error", "Health Check");
     } finally {
       setIsSyncing(false);
     }
-  }, [portfolios, calculateFinancialSummary, isSyncing, vantageScore, lastCalculatedSummary, settings.selectedModel, baseCurrency]);
-
-  const fetchNewsInBackground = useCallback(async () => {
-    if (!profile?.trackedSymbols || profile.trackedSymbols.length === 0 || newsCache.length > 0) return;
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: settings.selectedModel || 'gemini-3-flash-preview',
-        contents: `Latest news and prices for: ${profile.trackedSymbols.join(', ')}. Return JSON array of NewsItem objects.`,
-        config: { tools: [{ googleSearch: {} }] }
-      });
-      const data = JSON.parse(response.text.replace(/```json/g, '').replace(/```/g, '').trim());
-      setNewsCache(data);
-    } catch (e) {
-      console.error("News sync failed", e);
-    }
-  }, [profile?.trackedSymbols, newsCache.length, settings.selectedModel]);
-
-  // Background Sync Effect: Triggers when user is authenticated
-  useEffect(() => {
-    if (isAuth && !isLocked && isReady) {
-      refreshVantageScore();
-      fetchNewsInBackground();
-    }
-  }, [isAuth, isLocked, isReady, refreshVantageScore, fetchNewsInBackground]);
+  }, [portfolios, baseCurrency, settings.selectedModel, isSyncing, calculateFinancialSummary, ensureApiKey, profile?.customApiKey, addLog]);
 
   useEffect(() => {
     const initApp = async () => {
@@ -215,7 +263,7 @@ const App: React.FC = () => {
     setNewsCache([]);
     setVantageScore(null);
     setVantageAdvice('');
-    setLastCalculatedSummary('');
+    setIsAiRestricted(false);
   };
 
   useEffect(() => {
@@ -316,6 +364,26 @@ const App: React.FC = () => {
     if (navigator.vibrate) navigator.vibrate([10, 50, 10]);
   };
 
+  const addTrade = (t: Omit<Trade, 'updatedAt'>) => {
+    const newT = { ...t, updatedAt: Date.now() };
+    setTrades(prev => [...prev, newT]);
+    db.saveTrade(newT);
+    if (navigator.vibrate) navigator.vibrate(10);
+  };
+
+  const updateTrade = (t: Trade) => {
+    const updated = { ...t, updatedAt: Date.now() };
+    setTrades(prev => prev.map(item => item.id === t.id ? updated : item));
+    db.saveTrade(updated);
+    if (navigator.vibrate) navigator.vibrate(10);
+  };
+
+  const deleteTrade = (id: string) => {
+    setTrades(prev => prev.filter(t => t.id !== id));
+    db.deleteTrade(id);
+    if (navigator.vibrate) navigator.vibrate([10, 50, 10]);
+  };
+
   const addGoal = (g: Omit<Goal, 'updatedAt'>) => {
     const newG = { ...g, updatedAt: Date.now() };
     setGoals(prev => [...prev, newG]);
@@ -354,6 +422,11 @@ const App: React.FC = () => {
     addPortfolio,
     updatePortfolio,
     deletePortfolio,
+    trades,
+    setTrades,
+    addTrade,
+    updateTrade,
+    deleteTrade,
     goals,
     setGoals,
     addGoal,
@@ -381,7 +454,13 @@ const App: React.FC = () => {
     vantageAdvice,
     setVantageAdvice,
     isSyncing,
-    refreshVantageScore
+    refreshVantageScore,
+    isAiRestricted,
+    hasApiKey,
+    ensureApiKey,
+    logs,
+    addLog,
+    clearLogs
   };
 
   return (
@@ -399,17 +478,22 @@ const App: React.FC = () => {
             }}
           >
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white overflow-hidden font-bold text-xs shadow-glow shadow-inner-light">
-               {profile.firstName[0]}
+               {profile?.firstName?.[0] || '?'}
             </div>
             <div className="flex flex-col">
-              <span className="font-black text-sm tracking-tight text-slate-900 dark:text-white leading-none">{profile.name}</span>
+              <span className="font-black text-sm tracking-tight text-slate-900 dark:text-white leading-none">{profile?.name || 'Vantage User'}</span>
               <div className="flex items-center gap-1 mt-0.5">
                 <ShieldCheck size={10} className="text-emerald-500" />
                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Vault Secured</span>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
+            {isAiRestricted && (
+              <div className="flex items-center justify-center p-2 text-amber-500 animate-pulse" title="AI Rate Limited">
+                <AlertTriangle size={18} />
+              </div>
+            )}
             <button 
               onClick={() => {
                 setSettings(s => ({ ...s, privacyMode: !s.privacyMode }));
@@ -418,6 +502,15 @@ const App: React.FC = () => {
               className={`p-2.5 rounded-2xl transition-all duration-300 ${settings.privacyMode ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30' : 'bg-slate-200/50 dark:bg-slate-800/50 text-slate-500'}`}
             >
               {settings.privacyMode ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+            <button 
+              onClick={() => {
+                setActiveTab('settings');
+                if (navigator.vibrate) navigator.vibrate(5);
+              }}
+              className={`p-2.5 rounded-2xl transition-all duration-300 ${activeTab === 'settings' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'bg-slate-200/50 dark:bg-slate-800/50 text-slate-500'}`}
+            >
+              <SettingsIcon size={18} />
             </button>
           </div>
         </header>
@@ -434,10 +527,10 @@ const App: React.FC = () => {
                   }}
                 >
                   <div className="w-14 h-14 rounded-[1.5rem] bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white overflow-hidden font-black shadow-glow shadow-inner-light">
-                     {profile.firstName[0]}
+                     {profile?.firstName?.[0] || '?'}
                   </div>
                   <div className="flex flex-col overflow-hidden">
-                    <span className="font-black text-lg tracking-tight text-slate-900 dark:text-white leading-none mb-1 truncate">{profile.name}</span>
+                    <span className="font-black text-lg tracking-tight text-slate-900 dark:text-white leading-none mb-1 truncate">{profile?.name || 'Vantage User'}</span>
                     <div className="flex items-center gap-1">
                       <ShieldCheck size={12} className="text-emerald-500" />
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] truncate">Active Vault</span>
@@ -448,10 +541,13 @@ const App: React.FC = () => {
 
             <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Dashboard" />
             <TabButton active={activeTab === 'portfolios'} onClick={() => setActiveTab('portfolios')} icon={<Wallet size={20} />} label="Assets" />
+            <TabButton active={activeTab === 'trading'} onClick={() => setActiveTab('trading')} icon={<BarChart3 size={20} />} label="Trading" />
             <TabButton active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} icon={<History size={20} />} label="Activity" />
             <TabButton active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon={<Sparkles size={20} />} label="AI Hub" />
             <TabButton active={activeTab === 'news'} onClick={() => setActiveTab('news')} icon={<Newspaper size={20} />} label="News" />
-            <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<SettingsIcon size={20} />} label="Settings" />
+            <div className="hidden md:block w-full">
+              <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<SettingsIcon size={20} />} label="Settings" />
+            </div>
           </div>
         </nav>
 
@@ -459,6 +555,7 @@ const App: React.FC = () => {
           <div className="w-full px-5 pt-4 md:px-10 md:pt-10 animate-in fade-in slide-in-from-bottom-5 duration-700 flex flex-col items-stretch max-w-5xl mx-auto">
             {activeTab === 'dashboard' && <Dashboard />}
             {activeTab === 'portfolios' && <Portfolios />}
+            {activeTab === 'trading' && <Trading />}
             {activeTab === 'transactions' && <Transactions />}
             {activeTab === 'insights' && <Insights />}
             {activeTab === 'news' && <LatestNews />}
@@ -475,6 +572,35 @@ const App: React.FC = () => {
             onClose={() => setIsTxModalOpen(false)} 
             onSuccess={() => { reloadData(); setIsTxModalOpen(false); }}
           />
+        )}
+
+        {/* API Key Missing Popup */}
+        {showKeyWarning && (
+          <div className="fixed inset-0 z-[300] bg-slate-900/80 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-300">
+             <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in-95 duration-500 flex flex-col items-center text-center">
+                <div className="w-16 h-16 rounded-[1.2rem] bg-amber-500/10 flex items-center justify-center text-amber-500 mb-6">
+                   <Key size={32} />
+                </div>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">AI Activation Required</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed mb-8">
+                  To provide market intelligence and portfolio analysis, Vantage requires your personal Gemini API Key. Please update your key in Settings.
+                </p>
+                <div className="flex flex-col gap-3 w-full">
+                  <button 
+                    onClick={() => { setShowKeyWarning(false); setActiveTab('settings'); }}
+                    className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl text-[11px] uppercase tracking-widest shadow-premium active:scale-95 transition-all"
+                  >
+                    Go to Settings
+                  </button>
+                  <button 
+                    onClick={() => setShowKeyWarning(false)}
+                    className="w-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-black py-4 rounded-2xl text-[11px] uppercase tracking-widest active:scale-95 transition-all"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+             </div>
+          </div>
         )}
       </div>
     </AppContext.Provider>
