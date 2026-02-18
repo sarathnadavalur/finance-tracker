@@ -20,7 +20,8 @@ import {
   Lock,
   Sparkles,
   Delete,
-  LayoutTemplate
+  LayoutTemplate,
+  Maximize
 } from 'lucide-react';
 import { UserProfile, Portfolio, Transaction, AppSettings, LogEntry, FontSizeLabel } from '../types';
 
@@ -238,6 +239,23 @@ const Settings: React.FC = () => {
                     className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${settings.fontSize === size ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' : 'text-slate-400'}`}
                   >
                     {size}
+                  </button>
+                ))}
+              </div>
+            } 
+          />
+          <SettingsRow 
+            icon={<Maximize size={16} className="text-blue-500" />} 
+            label="Scale Factor" 
+            action={
+              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                {[0.7, 0.85, 1, 1.15, 1.3].map(scale => (
+                  <button
+                    key={scale}
+                    onClick={() => setSettings({...settings, scaleFactor: scale})}
+                    className={`px-2 py-1.5 rounded-lg text-[9px] font-black transition-all ${settings.scaleFactor === scale ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' : 'text-slate-400'}`}
+                  >
+                    {scale}x
                   </button>
                 ))}
               </div>

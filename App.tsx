@@ -115,6 +115,7 @@ const App: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>({ 
     darkMode: false, 
     fontSize: 'M', 
+    scaleFactor: 1,
     privacyMode: false, 
     autoSync: true,
     selectedModel: 'gemini-3-flash-preview',
@@ -311,8 +312,14 @@ const App: React.FC = () => {
   useEffect(() => {
     if (isReady) db.saveSettings(settings);
     
-    const sizes = { S: '14px', M: '16px', L: '18px', XL: '20px' };
-    document.documentElement.style.fontSize = sizes[settings.fontSize] || '16px';
+    // Scaling and Font Logic
+    // We use rem-based scaling. Tailwind uses rems for everything (padding, sizes, text).
+    // By changing the root font size, we scale the whole application perfectly.
+    const baseFontSize = 16;
+    const sizes = { S: baseFontSize * 0.85, M: baseFontSize, L: baseFontSize * 1.15, XL: baseFontSize * 1.3 };
+    const scaledSize = (sizes[settings.fontSize] || baseFontSize) * (settings.scaleFactor || 1);
+    
+    document.documentElement.style.fontSize = `${scaledSize}px`;
     
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (settings.darkMode) {

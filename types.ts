@@ -99,6 +99,7 @@ export type FontSizeLabel = 'S' | 'M' | 'L' | 'XL';
 export interface AppSettings {
   darkMode: boolean;
   fontSize: FontSizeLabel;
+  scaleFactor: number;
   privacyMode: boolean;
   autoSync: boolean;
   selectedModel: string;
