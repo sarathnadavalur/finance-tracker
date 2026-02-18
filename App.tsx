@@ -51,26 +51,29 @@ interface AppContextType {
   updateGoal: (g: Goal) => void;
   deleteGoal: (id: string) => void;
   baseCurrency: Currency;
-  setBaseCurrency: (c: Currency) => void;
+  setBaseCurrency: React.Dispatch<React.SetStateAction<Currency>>;
   profile: UserProfile | null;
-  setProfile: (p: UserProfile | null) => void;
+  setProfile: React.Dispatch<React.SetStateAction<UserProfile | null>>;
   settings: AppSettings;
-  setSettings: (s: AppSettings) => void;
+  setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
   rates: ExchangeRates;
   lastUpdated: Date;
   signOut: () => Promise<void>;
   reloadData: () => Promise<void>;
   shouldOpenProfile: boolean;
   setShouldOpenProfile: (val: boolean) => void;
+  activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
+  activePortfolioSection: PortfolioType | null;
+  setActivePortfolioSection: (section: PortfolioType | null) => void;
   setIsTxModalOpen: (val: boolean) => void;
   setIsPortfolioModalOpen: (val: boolean) => void;
   newsCache: any[];
-  setNewsCache: (news: any[]) => void;
+  setNewsCache: React.Dispatch<React.SetStateAction<any[]>>;
   vantageScore: number | null;
-  setVantageScore: (score: number | null) => void;
+  setVantageScore: React.Dispatch<React.SetStateAction<number | null>>;
   vantageAdvice: string;
-  setVantageAdvice: (advice: string) => void;
+  setVantageAdvice: React.Dispatch<React.SetStateAction<string>>;
   isSyncing: boolean;
   refreshVantageScore: (force?: boolean) => Promise<void>;
   isAiRestricted: boolean;
@@ -98,6 +101,7 @@ const App: React.FC = () => {
   const [isAuth, setIsAuth] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+  const [activePortfolioSection, setActivePortfolioSection] = useState<PortfolioType | null>(null);
   const [shouldOpenProfile, setShouldOpenProfile] = useState(false);
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [isPortfolioModalOpen, setIsPortfolioModalOpen] = useState(false);
@@ -109,11 +113,14 @@ const App: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [settings, setSettings] = useState<AppSettings>({ 
     darkMode: false, 
-    fontSize: 16, 
+    fontSize: 'M', 
     privacyMode: false, 
     autoSync: true,
     selectedModel: 'gemini-3-flash-preview',
-    developerMode: false
+    developerMode: false,
+    tradingEnabled: false,
+    aiEnabled: true,
+    biometricEnabled: true
   });
   const [rates, setRates] = useState<ExchangeRates>(INITIAL_RATES);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -208,7 +215,7 @@ const App: React.FC = () => {
   };
 
   const refreshVantageScore = useCallback(async (force: boolean = false) => {
-    if (portfolios.length === 0 || isSyncing) return;
+    if (!settings.aiEnabled || portfolios.length === 0 || isSyncing) return;
     if (!force) return;
 
     if (!(await ensureApiKey())) return;
@@ -240,7 +247,7 @@ const App: React.FC = () => {
     } finally {
       setIsSyncing(false);
     }
-  }, [portfolios, baseCurrency, settings.selectedModel, isSyncing, calculateFinancialSummary, ensureApiKey, profile?.customApiKey, addLog]);
+  }, [portfolios, baseCurrency, settings.aiEnabled, settings.selectedModel, isSyncing, calculateFinancialSummary, ensureApiKey, profile?.customApiKey, addLog]);
 
   useEffect(() => {
     const initApp = async () => {
@@ -302,7 +309,8 @@ const App: React.FC = () => {
   useEffect(() => {
     if (isReady) db.saveSettings(settings);
     
-    document.documentElement.style.fontSize = `${settings.fontSize}px`;
+    const sizes = { S: '14px', M: '16px', L: '18px', XL: '20px' };
+    document.documentElement.style.fontSize = sizes[settings.fontSize] || '16px';
     
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (settings.darkMode) {
@@ -444,7 +452,10 @@ const App: React.FC = () => {
     reloadData,
     shouldOpenProfile,
     setShouldOpenProfile,
+    activeTab,
     setActiveTab,
+    activePortfolioSection,
+    setActivePortfolioSection,
     setIsTxModalOpen,
     setIsPortfolioModalOpen,
     newsCache,
@@ -541,9 +552,13 @@ const App: React.FC = () => {
 
             <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Dashboard" />
             <TabButton active={activeTab === 'portfolios'} onClick={() => setActiveTab('portfolios')} icon={<Wallet size={20} />} label="Assets" />
-            <TabButton active={activeTab === 'trading'} onClick={() => setActiveTab('trading')} icon={<BarChart3 size={20} />} label="Trading" />
+            {settings.tradingEnabled && (
+              <TabButton active={activeTab === 'trading'} onClick={() => setActiveTab('trading')} icon={<BarChart3 size={20} />} label="Trading" />
+            )}
             <TabButton active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} icon={<History size={20} />} label="Activity" />
-            <TabButton active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon={<Sparkles size={20} />} label="AI Hub" />
+            {settings.aiEnabled && (
+              <TabButton active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon={<Sparkles size={20} />} label="AI Hub" />
+            )}
             <TabButton active={activeTab === 'news'} onClick={() => setActiveTab('news')} icon={<Newspaper size={20} />} label="News" />
             <div className="hidden md:block w-full">
               <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<SettingsIcon size={20} />} label="Settings" />
@@ -555,9 +570,9 @@ const App: React.FC = () => {
           <div className="w-full px-5 pt-4 md:px-10 md:pt-10 animate-in fade-in slide-in-from-bottom-5 duration-700 flex flex-col items-stretch max-w-5xl mx-auto">
             {activeTab === 'dashboard' && <Dashboard />}
             {activeTab === 'portfolios' && <Portfolios />}
-            {activeTab === 'trading' && <Trading />}
+            {activeTab === 'trading' && settings.tradingEnabled && <Trading />}
             {activeTab === 'transactions' && <Transactions />}
-            {activeTab === 'insights' && <Insights />}
+            {activeTab === 'insights' && settings.aiEnabled && <Insights />}
             {activeTab === 'news' && <LatestNews />}
             {activeTab === 'settings' && <Settings />}
           </div>
@@ -577,7 +592,7 @@ const App: React.FC = () => {
         {/* API Key Missing Popup */}
         {showKeyWarning && (
           <div className="fixed inset-0 z-[300] bg-slate-900/80 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-300">
-             <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in-95 duration-500 flex flex-col items-center text-center">
+             <div className="bg-white dark:bg-slate-900 w-full max-sm rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in-95 duration-500 flex flex-col items-center text-center">
                 <div className="w-16 h-16 rounded-[1.2rem] bg-amber-500/10 flex items-center justify-center text-amber-500 mb-6">
                    <Key size={32} />
                 </div>

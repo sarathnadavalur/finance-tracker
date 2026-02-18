@@ -30,6 +30,73 @@ interface TickerData {
   lastFetched: number;
 }
 
+/**
+ * Direct Market Fetcher
+ * Optimized for mobile environments and native wrappers.
+ * Fetches directly from high-reliability public endpoints.
+ */
+const fetchTickerDirect = async (symbol: string): Promise<TickerData> => {
+  const upperSymbol = symbol.toUpperCase().trim();
+  const isCrypto = (sym: string) => {
+    const cryptoSet = new Set(['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOT', 'DOGE', 'LINK', 'MATIC', 'PEPE', 'SUI', 'APT', 'NEAR', 'SHIB', 'UNI', 'LTC', 'AVAX', 'TRX']);
+    return cryptoSet.has(sym) || sym.endsWith('USD') || sym.endsWith('USDT');
+  };
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s for mobile resilience
+
+  try {
+    if (isCrypto(upperSymbol)) {
+      // BINANCE DIRECT (CORS Friendly)
+      const cleanSym = upperSymbol.replace('USD', '').replace('USDT', '');
+      const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${cleanSym}USDT`, { 
+        signal: controller.signal 
+      });
+      if (!res.ok) throw new Error(`Binance rejected request (${res.status})`);
+      const data = await res.json();
+      clearTimeout(timeoutId);
+      return {
+        price: parseFloat(data.price),
+        name: upperSymbol,
+        exchange: 'CRYPTO',
+        marketState: 'REGULAR',
+        lastFetched: Date.now()
+      };
+    } else {
+      // YAHOO V8 CHART DIRECT (Stable for single-ticker quotes)
+      const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${upperSymbol}?interval=1m&range=1d`, {
+        signal: controller.signal
+      });
+      
+      if (!res.ok) {
+        if (res.status === 404) throw new Error("Symbol not found");
+        throw new Error(`Market source unavailable (${res.status})`);
+      }
+
+      const data = await res.json();
+      clearTimeout(timeoutId);
+
+      const meta = data.chart?.result?.[0]?.meta;
+      if (!meta) throw new Error("Malformed market data received");
+
+      return {
+        price: meta.regularMarketPrice,
+        name: upperSymbol,
+        exchange: meta.exchangeName || 'STOCKS',
+        marketState: 'REGULAR', // v8 chart provides live regular price
+        lastFetched: Date.now()
+      };
+    }
+  } catch (e: any) {
+    clearTimeout(timeoutId);
+    if (e.name === 'AbortError') throw new Error("Connection timed out. Slow network.");
+    if (e.message.includes('Failed to fetch')) {
+      throw new Error("Security block (CORS). This feature works best in a native app environment.");
+    }
+    throw e;
+  }
+};
+
 const Trading: React.FC = () => {
   const { trades, addTrade, updateTrade, deleteTrade, rates, settings, addLog } = useApp();
   const [tickerCache, setTickerCache] = useState<Record<string, TickerData>>({});
@@ -37,105 +104,42 @@ const Trading: React.FC = () => {
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   
-  // Independent View Currency for Trading Tab
   const [viewCurrency, setViewCurrency] = useState<Currency>(Currency.USD);
 
-  // Helper to identify if a symbol is likely crypto
-  const isCryptoSymbol = (sym: string) => {
-    if (!sym) return false;
-    const cryptoSet = new Set(['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOT', 'DOGE', 'LINK', 'MATIC', 'PEPE', 'SUI', 'APT', 'NEAR']);
-    const upperSym = sym.toUpperCase();
-    return cryptoSet.has(upperSym) || upperSym.endsWith('USD') || upperSym.endsWith('USDT');
-  };
-
-  // REAL-TIME MARKET ENGINE (PUBLIC ENDPOINTS ONLY)
-  const syncMarketData = useCallback(async (isManual = false) => {
-    const symbols = [...new Set(trades.map(t => t.symbol))];
-    if (symbols.length === 0) return;
-
-    if (isManual) setIsSyncing(true);
+  const syncAllTrades = useCallback(async () => {
+    if (trades.length === 0) return;
+    setIsSyncing(true);
     
     const newCache = { ...tickerCache };
     let changed = false;
 
-    for (const symbol of symbols) {
+    // Sequential fetching to avoid mobile rate-limiting issues
+    for (const trade of trades) {
       try {
-        if (isCryptoSymbol(symbol)) {
-          const cleanSym = symbol.toUpperCase().replace('USD', '').replace('USDT', '');
-          const pair = `${cleanSym}USDT`;
-          const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${pair}`);
-          if (res.ok) {
-            const data = await res.json();
-            newCache[symbol] = {
-              price: parseFloat(data.price),
-              name: symbol.toUpperCase(),
-              exchange: 'CRYPTO',
-              marketState: 'REGULAR', // Crypto is always 24/7 regular
-              lastFetched: Date.now()
-            };
-            changed = true;
-          }
-        } else {
-          // Yahoo Finance via Proxy with PRE/POST/OVERNIGHT support
-          const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol.toUpperCase()}?interval=1m&range=1d&includePrePost=true`;
-          const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-          
-          const res = await fetch(proxyUrl);
-          if (res.ok) {
-            const data = await res.json();
-            const meta = data.chart?.result?.[0]?.meta;
-            if (meta) {
-              // EXTENDED HOURS LOGIC: Prioritize Post -> Pre -> Regular
-              let activePrice = meta.regularMarketPrice;
-              let state: TickerData['marketState'] = 'REGULAR';
-
-              const marketState = meta.marketState || '';
-
-              if (marketState === 'POSTPOST' || marketState === 'POST') {
-                activePrice = meta.postMarketPrice || meta.regularMarketPrice;
-                state = 'POST';
-              } else if (marketState === 'PREPRE' || marketState === 'PRE') {
-                activePrice = meta.preMarketPrice || meta.regularMarketPrice;
-                state = 'PRE';
-              } else if (marketState === 'CLOSED') {
-                activePrice = meta.postMarketPrice || meta.regularMarketPrice;
-                state = 'CLOSED';
-              }
-
-              newCache[symbol] = {
-                price: activePrice,
-                name: meta.shortName || symbol.toUpperCase(),
-                exchange: meta.exchangeName || 'STOCKS',
-                marketState: state,
-                lastFetched: Date.now()
-              };
-              changed = true;
-            }
-          }
-        }
-      } catch (e: any) {
-        console.error(`Market Fetch failed for ${symbol}:`, e);
+        const data = await fetchTickerDirect(trade.symbol);
+        newCache[trade.symbol.toUpperCase()] = data;
+        changed = true;
+      } catch (e) {
+        console.error(`Sync failed for ${trade.symbol}`, e);
       }
     }
 
-    if (changed) {
-      setTickerCache(newCache);
-    }
+    if (changed) setTickerCache(newCache);
     setIsSyncing(false);
   }, [trades, tickerCache]);
 
   useEffect(() => {
-    syncMarketData(true);
-    const interval = setInterval(() => syncMarketData(), 5000);
+    syncAllTrades();
+    const interval = setInterval(syncAllTrades, 30000); // 30s cycle
     return () => clearInterval(interval);
-  }, [trades.length, syncMarketData]);
+  }, [trades.length]);
 
   const stats = useMemo(() => {
     let totalInvestedView = 0;
     let totalCurrentValueView = 0;
 
     trades.forEach(t => {
-      const liveData = tickerCache[t.symbol];
+      const liveData = tickerCache[t.symbol.toUpperCase()];
       const currentPrice = liveData?.price || t.avgCost;
       
       const investedInTradeCurr = t.avgCost * t.quantity;
@@ -162,11 +166,6 @@ const Trading: React.FC = () => {
     }).format(val);
   };
 
-  const handleEdit = (t: Trade) => {
-    setEditingTrade(t);
-    setIsAddModalOpen(true);
-  };
-
   return (
     <div className="w-full flex flex-col min-h-full pb-32">
       <div className="pt-4 pb-6 px-1">
@@ -175,14 +174,14 @@ const Trading: React.FC = () => {
               <h1 className="text-3xl font-black tracking-tighter text-slate-900 dark:text-white leading-tight">Trading</h1>
               <div className="flex items-center gap-2 mt-0.5">
                 <div className={`w-1.5 h-1.5 rounded-full ${isSyncing ? 'bg-blue-500 animate-spin' : 'bg-emerald-500 animate-pulse'}`}></div>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-[0.2em]">Global 24/7 Feed (5s)</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-[0.2em]">Real-Time Market Hub</p>
               </div>
            </div>
            
            <div className="flex items-center gap-2">
               <div className="relative group">
                 <div className="flex items-center gap-1.5 glass px-4 py-2.5 rounded-2xl border-white/40 shadow-sm tap-scale cursor-pointer">
-                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">View</span>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Unit</span>
                   <select 
                     value={viewCurrency} 
                     onChange={(e) => setViewCurrency(e.target.value as Currency)} 
@@ -197,9 +196,9 @@ const Trading: React.FC = () => {
               </div>
 
               <button 
-                onClick={() => { syncMarketData(true); if (navigator.vibrate) navigator.vibrate(5); }}
+                onClick={() => syncAllTrades()}
                 disabled={isSyncing}
-                className="w-12 h-12 rounded-[1.3rem] glass flex items-center justify-center text-slate-500 active:text-blue-600 shadow-sm active:scale-90 transition-all disabled:opacity-50"
+                className="w-12 h-12 rounded-[1.3rem] glass flex items-center justify-center text-slate-500 active:text-blue-600 shadow-sm active:scale-90 transition-all"
               >
                 <RefreshCcw size={20} className={`${isSyncing ? 'animate-spin text-blue-500' : ''}`} />
               </button>
@@ -213,7 +212,6 @@ const Trading: React.FC = () => {
            </div>
         </div>
 
-        {/* Dashboard Summary */}
         <div className="grid grid-cols-3 gap-3 mb-10">
            <div className="glass p-5 rounded-[2.2rem] border border-white/40 dark:border-white/5 flex flex-col justify-between">
               <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-2 opacity-60">Basis ({viewCurrency})</span>
@@ -222,7 +220,7 @@ const Trading: React.FC = () => {
               </p>
            </div>
            <div className="glass p-5 rounded-[2.2rem] border border-white/40 dark:border-white/5 flex flex-col justify-between">
-              <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-2 opacity-60">Live Value</span>
+              <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-2 opacity-60">Value</span>
               <p className={`text-[13px] font-black text-slate-900 dark:text-white tabular-nums truncate ${settings.privacyMode ? 'blur-md' : ''}`}>
                 {formatVal(stats.current)}
               </p>
@@ -230,7 +228,6 @@ const Trading: React.FC = () => {
            <div className={`p-5 rounded-[2.2rem] border flex flex-col justify-between transition-all duration-500 ${stats.pl >= 0 ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20'}`}>
               <div className="flex items-center justify-between mb-2">
                  <span className={`text-[8px] font-black uppercase tracking-widest ${stats.pl >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>Net P/L</span>
-                 {stats.pl >= 0 ? <TrendingUp size={10} className="text-emerald-500" /> : <TrendingDown size={10} className="text-rose-500" />}
               </div>
               <p className={`text-[13px] font-black tabular-nums truncate ${settings.privacyMode ? 'blur-md' : (stats.pl >= 0 ? 'text-emerald-600' : 'text-rose-600')}`}>
                 {stats.pl >= 0 ? '+' : ''}{formatVal(stats.pl)}
@@ -238,7 +235,6 @@ const Trading: React.FC = () => {
            </div>
         </div>
 
-        {/* Trade List */}
         <div className="space-y-3">
           {trades.length === 0 ? (
             <div className="py-24 flex flex-col items-center justify-center text-slate-400/40 gap-6">
@@ -252,9 +248,9 @@ const Trading: React.FC = () => {
               <TradeCard 
                 key={trade.id} 
                 trade={trade} 
-                meta={tickerCache[trade.symbol]}
+                meta={tickerCache[trade.symbol.toUpperCase()]}
                 onDelete={() => deleteTrade(trade.id)}
-                onEdit={() => handleEdit(trade)}
+                onEdit={() => { setEditingTrade(trade); setIsAddModalOpen(true); }}
                 formatVal={formatVal}
                 isPrivate={settings.privacyMode}
                 viewCurrency={viewCurrency}
@@ -308,13 +304,6 @@ const TradeCard: React.FC<{
     }).format(val);
   };
 
-  const getStateColor = (state?: TickerData['marketState']) => {
-    if (state === 'PRE') return 'bg-amber-500/10 text-amber-600';
-    if (state === 'POST') return 'bg-blue-500/10 text-blue-600';
-    if (state === 'CLOSED') return 'bg-slate-500/10 text-slate-500';
-    return 'bg-emerald-500/10 text-emerald-600';
-  };
-
   return (
     <div 
       onClick={onEdit}
@@ -325,17 +314,7 @@ const TradeCard: React.FC<{
            <span className="font-black text-[11px] uppercase tracking-tighter">{trade.symbol.substring(0, 3)}</span>
         </div>
         <div className="flex flex-col min-w-0">
-           <div className="flex items-center gap-2">
-              <h3 className="text-[17px] font-black text-slate-900 dark:text-white leading-tight uppercase truncate">{trade.symbol}</h3>
-              {meta?.marketState && meta.marketState !== 'REGULAR' && (
-                <span className={`text-[7px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-widest flex items-center gap-1 ${getStateColor(meta.marketState)}`}>
-                  <Clock size={8} /> {meta.marketState}
-                </span>
-              )}
-           </div>
-           <p className="text-[10px] font-bold text-slate-400 truncate opacity-80 leading-none mt-0.5">
-             {meta?.name || "Market Position"}
-           </p>
+           <h3 className="text-[17px] font-black text-slate-900 dark:text-white leading-tight uppercase truncate">{trade.symbol}</h3>
            <div className="flex items-center gap-2 mt-2">
               <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{trade.quantity} Units</span>
               <div className="w-1 h-1 rounded-full bg-slate-200"></div>
@@ -351,7 +330,7 @@ const TradeCard: React.FC<{
             </span>
             <div className="flex items-center gap-1.5 mt-1.5">
                <span className={`text-[10px] font-black uppercase tracking-tighter ${isPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
-                 {isPositive ? '▲' : '▼'} {Math.abs(plPercent).toFixed(2)}%
+                 {Math.abs(plPercent).toFixed(2)}%
                </span>
                <div className="w-px h-2 bg-slate-200"></div>
                <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tabular-nums">
@@ -382,7 +361,7 @@ const AddTradeModal: React.FC<{
     currency: Currency.USD
   });
   const [isValidating, setIsValidating] = useState(false);
-  const [validationData, setValidationData] = useState<{name: string, price: number, state: string} | null>(null);
+  const [validationData, setValidationData] = useState<TickerData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -399,37 +378,13 @@ const AddTradeModal: React.FC<{
   const validateAndFetch = async () => {
     const sym = formData.symbol.toUpperCase().trim();
     if (!sym) return;
-    
     setIsValidating(true);
     setError(null);
     setValidationData(null);
 
     try {
-      const isCrypto = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOT', 'DOGE', 'LINK', 'MATIC', 'PEPE', 'SUI', 'APT', 'NEAR'].includes(sym);
-      
-      if (isCrypto) {
-        const pair = `${sym}USDT`;
-        const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${pair}`);
-        if (!res.ok) throw new Error("Ticker not found on exchange");
-        const data = await res.json();
-        setValidationData({ name: sym, price: parseFloat(data.price), state: '24/7' });
-      } else {
-        const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1m&range=1d&includePrePost=true`;
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-        const res = await fetch(proxyUrl);
-        if (!res.ok) throw new Error("Ticker not found in market database");
-        const data = await res.json();
-        const meta = data.chart?.result?.[0]?.meta;
-        if (!meta) throw new Error("Incomplete market response");
-        
-        // Priority selection for validating
-        let finalP = meta.regularMarketPrice;
-        const marketState = meta.marketState || '';
-        if (marketState.includes('POST')) finalP = meta.postMarketPrice || meta.regularMarketPrice;
-        else if (marketState.includes('PRE')) finalP = meta.preMarketPrice || meta.regularMarketPrice;
-
-        setValidationData({ name: meta.shortName || sym, price: finalP, state: marketState || 'STOCKS' });
-      }
+      const data = await fetchTickerDirect(sym);
+      setValidationData(data);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -440,7 +395,6 @@ const AddTradeModal: React.FC<{
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.symbol || !formData.avgCost || !formData.quantity) return;
-    
     onSave({
       id: editingTrade ? editingTrade.id : Date.now().toString(),
       symbol: formData.symbol.toUpperCase().trim(),
@@ -458,14 +412,9 @@ const AddTradeModal: React.FC<{
       <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.8rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
          <div className="p-8">
             <div className="flex items-center justify-between mb-8">
-               <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600">
-                     <BarChart3 size={22} />
-                  </div>
-                  <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">
-                    {editingTrade ? 'Update Trade' : 'New Position'}
-                  </h2>
-               </div>
+               <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">
+                 {editingTrade ? 'Update Position' : 'Log Trade'}
+               </h2>
                <button onClick={onClose} className="p-2.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                  <X size={20} className="text-slate-500" />
                </button>
@@ -477,7 +426,7 @@ const AddTradeModal: React.FC<{
                   <div className="flex gap-2">
                     <input 
                       required 
-                      placeholder="e.g. NVDA, BTC, TSLA"
+                      placeholder="NVDA, BTC, AAPL"
                       className={inputStyle} 
                       value={formData.symbol} 
                       onChange={e => {
@@ -498,21 +447,19 @@ const AddTradeModal: React.FC<{
                </div>
 
                {validationData && (
-                 <div className="bg-emerald-500/10 p-4 rounded-2xl border border-emerald-500/20 flex items-center justify-between">
+                 <div className="bg-emerald-500/10 p-4 rounded-2xl border border-emerald-500/20 flex items-center justify-between animate-in slide-in-from-top-2">
                     <div>
-                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">
-                        {validationData.state} Price Verified
-                      </p>
-                      <p className="text-xs font-bold text-slate-900 dark:text-white">{validationData.name}</p>
+                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Source Verified</p>
+                      <p className="text-xs font-bold text-slate-900 dark:text-white">{validationData.name} ({validationData.exchange})</p>
                     </div>
-                    <p className="text-xs font-black text-emerald-600 tabular-nums">${validationData.price}</p>
+                    <p className="text-xs font-black text-emerald-600 tabular-nums">${validationData.price.toFixed(2)}</p>
                  </div>
                )}
 
                {error && (
-                 <div className="bg-rose-500/10 p-4 rounded-2xl border border-rose-500/20 flex items-center gap-2">
-                    <AlertCircle size={14} className="text-rose-500" />
-                    <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest">{error}</p>
+                 <div className="bg-rose-500/10 p-4 rounded-2xl border border-rose-500/20 flex items-center gap-2 animate-in slide-in-from-top-2">
+                    <AlertCircle size={14} className="text-rose-500 shrink-0" />
+                    <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest leading-relaxed">{error}</p>
                  </div>
                )}
 
@@ -522,8 +469,8 @@ const AddTradeModal: React.FC<{
                     <input required type="number" step="any" placeholder="0.00" className={inputStyle} value={formData.avgCost} onChange={e => setFormData({...formData, avgCost: e.target.value})} />
                   </div>
                   <div className="space-y-1">
-                    <label className={labelStyle}>Units Held</label>
-                    <input required type="number" step="any" placeholder="0.00" className={inputStyle} value={formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value})} />
+                    <label className={labelStyle}>Quantity</label>
+                    <input required type="number" step="any" placeholder="1.0" className={inputStyle} value={formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value})} />
                   </div>
                </div>
 
@@ -546,7 +493,7 @@ const AddTradeModal: React.FC<{
                <div className="flex gap-4 pt-4">
                   <button type="button" onClick={onClose} className="flex-1 py-4 font-black text-[10px] uppercase tracking-widest text-slate-500 bg-slate-100 dark:bg-slate-800 rounded-2xl">Cancel</button>
                   <button type="submit" className="flex-[1.5] py-4 font-black text-[10px] uppercase tracking-widest bg-blue-600 text-white rounded-2xl shadow-glow">
-                    {editingTrade ? 'Update' : 'Log Position'}
+                    {editingTrade ? 'Update' : 'Confirm Trade'}
                   </button>
                </div>
             </form>

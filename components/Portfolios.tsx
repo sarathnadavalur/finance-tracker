@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Wallet, Target, Sparkles } from 'lucide-react';
 import { useApp } from '../App';
 import { Portfolio, PortfolioType, Goal } from '../types';
@@ -10,7 +10,7 @@ import GoalForm from './GoalForm';
 import GoalDetails from './GoalDetails';
 
 const Portfolios: React.FC = () => {
-  const { portfolios, goals } = useApp();
+  const { portfolios, goals, activePortfolioSection, setActivePortfolioSection } = useApp();
   const [activeSubTab, setActiveSubTab] = useState<'accounts' | 'goals'>('accounts');
   const [isPortfolioModalOpen, setIsPortfolioModalOpen] = useState(false);
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
@@ -18,12 +18,30 @@ const Portfolios: React.FC = () => {
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [selectedGoalDetails, setSelectedGoalDetails] = useState<Goal | null>(null);
 
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
+
   const segments = [
     PortfolioType.SAVINGS,
     PortfolioType.INVESTMENTS,
     PortfolioType.DEBTS,
     PortfolioType.EMIS
   ];
+
+  useEffect(() => {
+    if (activePortfolioSection) {
+      setActiveSubTab('accounts');
+      // Use a timeout to ensure the tab has switched before scrolling
+      const timer = setTimeout(() => {
+        const el = sectionRefs.current[activePortfolioSection];
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          // Highlight effect or just clear
+          setActivePortfolioSection(null);
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [activePortfolioSection, setActivePortfolioSection]);
 
   const handleEditPortfolio = (p: Portfolio) => {
     setEditingPortfolio(p);
@@ -44,7 +62,7 @@ const Portfolios: React.FC = () => {
         </div>
         
         {/* Switcher */}
-        <div className="flex p(1) bg-white/40 dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 dark:border-white/5 rounded-2xl shadow-sm self-start">
+        <div className="flex p-1 bg-white/40 dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 dark:border-white/5 rounded-2xl shadow-sm self-start">
           <button 
             onClick={() => setActiveSubTab('accounts')}
             className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeSubTab === 'accounts' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-400'}`}
@@ -69,7 +87,12 @@ const Portfolios: React.FC = () => {
             if (filtered.length === 0) return null;
 
             return (
-              <section key={type} className="animate-in fade-in slide-in-from-left-2 duration-500">
+              <section 
+                key={type} 
+                // Wrap the assignment in braces to ensure the callback returns void, fixing TS error
+                ref={el => { sectionRefs.current[type] = el; }}
+                className="animate-in fade-in slide-in-from-left-2 duration-500"
+              >
                 <div className="flex items-center gap-3 mb-6 px-1">
                   <h2 className="text-[11px] font-black tracking-[0.2em] text-slate-400 dark:text-slate-500 uppercase">{type}</h2>
                   <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800 opacity-50"></div>

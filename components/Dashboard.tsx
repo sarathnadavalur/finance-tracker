@@ -6,7 +6,7 @@ import { Info, ChevronDown, Zap, Plus, Receipt, TrendingUp, TrendingDown, ArrowU
 import { GoogleGenAI } from '@google/genai';
 
 const Dashboard: React.FC = () => {
-  const { portfolios, baseCurrency, setBaseCurrency, rates, settings, setIsPortfolioModalOpen, setIsTxModalOpen, lastUpdated, isSyncing, vantageScore, vantageAdvice, refreshVantageScore } = useApp();
+  const { portfolios, baseCurrency, setBaseCurrency, rates, settings, setIsPortfolioModalOpen, setIsTxModalOpen, lastUpdated, isSyncing, vantageScore, vantageAdvice, refreshVantageScore, setActiveTab, setActivePortfolioSection } = useApp();
   
   const [showAdvicePopup, setShowAdvicePopup] = useState(false);
 
@@ -46,13 +46,22 @@ const Dashboard: React.FC = () => {
       }
     });
     const totalAssets = (investments + savings) || 1;
+    const totalLiabilities = debt + emiTotal;
+    const netValue = investments + savings - totalLiabilities;
+    
     return {
-      savings, investments, debt, emiTotal,
-      netValue: investments + savings - debt - emiTotal,
+      savings, investments, debt, emiTotal, totalLiabilities,
+      netValue,
       investmentsPercentage: ((investments / totalAssets) * 100).toFixed(0) + '%',
       savingsPercentage: ((savings / totalAssets) * 100).toFixed(0) + '%'
     };
   }, [portfolios, baseCurrency, rates]);
+
+  const navigateToSection = (type: PortfolioType) => {
+    setActivePortfolioSection(type);
+    setActiveTab('portfolios');
+    if (navigator.vibrate) navigator.vibrate(10);
+  };
 
   const formatCurrency = (val: number) => {
     const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: baseCurrency, maximumFractionDigits: 0 }).format(val);
@@ -60,7 +69,6 @@ const Dashboard: React.FC = () => {
   };
 
   const otherCurrencies = Object.values(Currency).filter(c => c !== baseCurrency);
-  const formattedLastUpdated = lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   const radius = 30;
   const circumference = 2 * Math.PI * radius;
@@ -72,6 +80,29 @@ const Dashboard: React.FC = () => {
     if (score > 40) return 'text-amber-500';
     return 'text-rose-500';
   };
+
+  // Pie Chart Data
+  const pieData = useMemo(() => {
+    const total = (totals.savings + totals.investments + totals.totalLiabilities) || 1;
+    const sP = (totals.savings / total) * 100;
+    const iP = (totals.investments / total) * 100;
+    const lP = (totals.totalLiabilities / total) * 100;
+
+    // SVG segments
+    let cumulative = 0;
+    const getStroke = (percent: number) => {
+      const dash = (percent / 100) * circumference;
+      const offset = - (cumulative / 100) * circumference;
+      cumulative += percent;
+      return { dash, offset };
+    };
+
+    return {
+      savings: getStroke(sP),
+      investments: getStroke(iP),
+      liabilities: getStroke(lP)
+    };
+  }, [totals, circumference]);
 
   return (
     <div className="w-full space-y-6 flex flex-col items-stretch pb-10">
@@ -107,83 +138,180 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* AI Vantage Pulse - Refactored for manual first */}
-      <div 
-        className="relative group overflow-hidden rounded-[2.2rem] bg-slate-950 p-6 shadow-lg transition-all duration-500 border border-white/5"
-      >
-        <div className="flex items-center gap-6 relative z-10">
-          <div className="relative w-16 h-16 shrink-0 flex items-center justify-center">
-             <svg viewBox="0 0 80 80" className="w-full h-full transform -rotate-90 relative z-10 block">
-               <circle cx="40" cy="40" r={radius} fill="transparent" stroke="rgba(255,255,255,0.05)" strokeWidth="6" />
-               <circle
-                 cx="40" cy="40" r={radius}
-                 fill="transparent"
-                 stroke="currentColor"
-                 strokeWidth="6"
-                 strokeDasharray={circumference}
-                 style={{ 
-                   strokeDashoffset: (isSyncing || vantageScore === null) ? circumference : scoreOffset,
-                   transition: 'stroke-dashoffset 2s cubic-bezier(0.34, 1.56, 0.64, 1)' 
-                 }}
-                 className={`${vantageScore !== null ? getScoreColor(vantageScore) : 'text-slate-700'} drop-shadow-[0_0_8px_rgba(59,130,246,0.3)]`}
-               />
-             </svg>
-             <div className="absolute inset-0 z-20 flex items-center justify-center">
-               {isSyncing ? (
-                 <Loader2 size={16} className="animate-spin text-blue-500" />
-               ) : vantageScore !== null ? (
-                 <span className="text-[18px] font-black text-white tracking-tighter tabular-nums leading-none">
-                   {vantageScore}
-                 </span>
-               ) : (
-                 <Brain size={16} className="text-slate-600" />
-               )}
-             </div>
-          </div>
+      {/* Quick Actions - Smaller Buttons */}
+      <div className="grid grid-cols-2 gap-4">
+        <button 
+          onClick={() => setIsPortfolioModalOpen(true)}
+          className="flex items-center justify-center gap-2 glossy-blue text-white py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all"
+        >
+          <Plus size={16} strokeWidth={3} />
+          <span>Add Asset</span>
+        </button>
+        <button 
+          onClick={() => setIsTxModalOpen(true)}
+          className="flex items-center justify-center gap-2 glass py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-sm active:scale-95 transition-all"
+        >
+          <Receipt size={16} className="text-blue-500" strokeWidth={2.5} />
+          <span className="text-slate-900 dark:text-white">New Transaction</span>
+        </button>
+      </div>
 
-          <div className="flex flex-col flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 mb-1">
-              <Sparkles size={12} className="text-blue-400" />
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">AI Vantage Pulse</span>
+      {/* AI Vantage Pulse - Only visible if AI is enabled */}
+      {settings.aiEnabled && (
+        <div 
+          className="relative group overflow-hidden rounded-[2.2rem] bg-slate-950 p-6 shadow-lg transition-all duration-500 border border-white/5"
+        >
+          <div className="flex items-center gap-6 relative z-10">
+            <div className="relative w-16 h-16 shrink-0 flex items-center justify-center">
+               <svg viewBox="0 0 80 80" className="w-full h-full transform -rotate-90 relative z-10 block">
+                 <circle cx="40" cy="40" r={radius} fill="transparent" stroke="rgba(255,255,255,0.05)" strokeWidth="6" />
+                 <circle
+                   cx="40" cy="40" r={radius}
+                   fill="transparent"
+                   stroke="currentColor"
+                   strokeWidth="6"
+                   strokeDasharray={circumference}
+                   style={{ 
+                     strokeDashoffset: (isSyncing || vantageScore === null) ? circumference : scoreOffset,
+                     transition: 'stroke-dashoffset 2s cubic-bezier(0.34, 1.56, 0.64, 1)' 
+                   }}
+                   className={`${vantageScore !== null ? getScoreColor(vantageScore) : 'text-slate-700'} drop-shadow-[0_0_8px_rgba(59,130,246,0.3)]`}
+                 />
+               </svg>
+               <div className="absolute inset-0 z-20 flex items-center justify-center">
+                 {isSyncing ? (
+                   <Loader2 size={16} className="animate-spin text-blue-500" />
+                 ) : vantageScore !== null ? (
+                   <span className="text-[18px] font-black text-white tracking-tighter tabular-nums leading-none">
+                     {vantageScore}
+                   </span>
+                 ) : (
+                   <Brain size={16} className="text-slate-600" />
+                 )}
+               </div>
+            </div>
+
+            <div className="flex flex-col flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Sparkles size={12} className="text-blue-400" />
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">AI Vantage Pulse</span>
+              </div>
+              
+              {vantageScore !== null ? (
+                <div 
+                  onClick={() => setShowAdvicePopup(true)}
+                  className="cursor-pointer group/text"
+                >
+                  <p className="text-[14px] font-bold text-white leading-snug line-clamp-1 pr-4 group-hover/text:text-blue-400 transition-colors">
+                    {vantageAdvice || "Trajectory verified."}
+                  </p>
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1 inline-flex items-center gap-1">
+                    Click for Analysis <ChevronRight size={8} />
+                  </span>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-[14px] font-bold text-slate-400 leading-snug mb-3">
+                    Analyze your portfolio health
+                  </p>
+                  <button 
+                    onClick={() => refreshVantageScore(true)}
+                    disabled={isSyncing}
+                    className="bg-blue-600 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {isSyncing ? <Loader2 size={10} className="animate-spin" /> : <Zap size={10} />}
+                    Refresh
+                  </button>
+                </div>
+              )}
             </div>
             
-            {vantageScore !== null ? (
-              <div 
-                onClick={() => setShowAdvicePopup(true)}
-                className="cursor-pointer group/text"
-              >
-                <p className="text-[14px] font-bold text-white leading-snug line-clamp-1 pr-4 group-hover/text:text-blue-400 transition-colors">
-                  {vantageAdvice || "Trajectory verified."}
-                </p>
-                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1 inline-flex items-center gap-1">
-                  Click for Deep Analysis <ChevronRight size={8} />
-                </span>
-              </div>
-            ) : (
-              <div>
-                <p className="text-[14px] font-bold text-slate-400 leading-snug mb-3">
-                  Get Vantage Insights on your portfolio
-                </p>
-                <button 
+            {vantageScore !== null && !isSyncing && (
+               <button 
                   onClick={() => refreshVantageScore(true)}
-                  disabled={isSyncing}
-                  className="bg-blue-600 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
-                >
-                  {isSyncing ? <Loader2 size={10} className="animate-spin" /> : <Zap size={10} />}
-                  Analyze Portfolio
-                </button>
-              </div>
+                  className="p-3 bg-white/5 rounded-2xl text-slate-500 hover:text-white transition-all"
+               >
+                 <RefreshCcw size={14} />
+               </button>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Distribution Section with Pie Chart */}
+      <div className="glass rounded-[2.5rem] p-8 shadow-sm">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col">
+            <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Distribution</h3>
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1 opacity-60">Allocation Breakdown</p>
+          </div>
           
-          {vantageScore !== null && !isSyncing && (
-             <button 
-                onClick={() => refreshVantageScore(true)}
-                className="p-3 bg-white/5 rounded-2xl text-slate-500 hover:text-white transition-all"
-             >
-               <RefreshCcw size={14} />
-             </button>
-          )}
+          {/* SVG Pie Chart */}
+          <div className="relative w-16 h-16">
+            <svg viewBox="0 0 80 80" className="w-full h-full transform -rotate-90">
+              <circle cx="40" cy="40" r={radius} fill="transparent" stroke="rgba(0,0,0,0.05)" strokeWidth="12" />
+              {/* Investments Segment */}
+              <circle
+                cx="40" cy="40" r={radius}
+                fill="transparent"
+                stroke="#3b82f6"
+                strokeWidth="12"
+                strokeDasharray={`${pieData.investments.dash} ${circumference}`}
+                strokeDashoffset={pieData.investments.offset}
+                className="transition-all duration-1000 ease-out"
+              />
+              {/* Savings Segment */}
+              <circle
+                cx="40" cy="40" r={radius}
+                fill="transparent"
+                stroke="#10b981"
+                strokeWidth="12"
+                strokeDasharray={`${pieData.savings.dash} ${circumference}`}
+                strokeDashoffset={pieData.savings.offset}
+                className="transition-all duration-1000 ease-out"
+              />
+              {/* Liabilities Segment */}
+              <circle
+                cx="40" cy="40" r={radius}
+                fill="transparent"
+                stroke="#ef4444"
+                strokeWidth="12"
+                strokeDasharray={`${pieData.liabilities.dash} ${circumference}`}
+                strokeDashoffset={pieData.liabilities.offset}
+                className="transition-all duration-1000 ease-out"
+              />
+            </svg>
+          </div>
+        </div>
+        
+        <div className="space-y-1">
+          <DistributionRow 
+            label="Investments" 
+            amount={totals.investments} 
+            percentage={totals.investmentsPercentage} 
+            color="bg-blue-500" 
+            currency={baseCurrency} 
+            isPrivate={settings.privacyMode} 
+            onClick={() => navigateToSection(PortfolioType.INVESTMENTS)}
+          />
+          <DistributionRow 
+            label="Savings" 
+            amount={totals.savings} 
+            percentage={totals.savingsPercentage} 
+            color="bg-emerald-500" 
+            currency={baseCurrency} 
+            isPrivate={settings.privacyMode} 
+            onClick={() => navigateToSection(PortfolioType.SAVINGS)}
+          />
+          <DistributionRow 
+            label="Liabilities" 
+            amount={totals.totalLiabilities} 
+            percentage="Total Owed" 
+            color="bg-rose-500" 
+            currency={baseCurrency} 
+            isPrivate={settings.privacyMode} 
+            onClick={() => navigateToSection(PortfolioType.DEBTS)}
+          />
         </div>
       </div>
 
@@ -201,42 +329,6 @@ const Dashboard: React.FC = () => {
         </div>
         <div className="flex items-center gap-1.5 bg-emerald-500/10 px-2 py-1 rounded-lg shrink-0">
           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-          <span className="text-[8px] font-black text-emerald-600 uppercase tracking-tighter">{formattedLastUpdated}</span>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-4">
-        <button 
-          onClick={() => setIsPortfolioModalOpen(true)}
-          className="flex items-center justify-center gap-2.5 glossy-blue text-white py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest shadow-lg active:scale-95 transition-all"
-        >
-          <Plus size={18} strokeWidth={3} />
-          <span>Add Asset</span>
-        </button>
-        <button 
-          onClick={() => setIsTxModalOpen(true)}
-          className="flex items-center justify-center gap-2.5 glass py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest shadow-sm active:scale-95 transition-all"
-        >
-          <Receipt size={18} className="text-blue-500" strokeWidth={2.5} />
-          <span className="text-slate-900 dark:text-white">New Entry</span>
-        </button>
-      </div>
-
-      {/* Distribution Section */}
-      <div className="glass rounded-[2.5rem] p-8 shadow-sm">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex flex-col">
-            <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Distribution</h3>
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1 opacity-60">Allocation</p>
-          </div>
-          <TrendingUp size={20} className="text-blue-600 opacity-20" />
-        </div>
-        
-        <div className="space-y-1">
-          <DistributionRow label="Investments" amount={totals.investments} percentage={totals.investmentsPercentage} color="bg-blue-500" currency={baseCurrency} isPrivate={settings.privacyMode} />
-          <DistributionRow label="Savings" amount={totals.savings} percentage={totals.savingsPercentage} color="bg-emerald-500" currency={baseCurrency} isPrivate={settings.privacyMode} />
-          <DistributionRow label="Liabilities" amount={totals.debt + totals.emiTotal} percentage="Owed" color="bg-rose-500" currency={baseCurrency} isPrivate={settings.privacyMode} />
         </div>
       </div>
 
@@ -262,7 +354,7 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/20 p-6 rounded-2xl border border-slate-100 dark:border-white/5">
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-60">Calculated Score</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-60">Health Score</span>
                   <div className="flex items-center gap-2">
                     <div className={`w-3 h-3 rounded-full ${getScoreColor(vantageScore || 0)} shadow-glow`}></div>
                     <span className={`text-4xl font-black tracking-tighter tabular-nums ${getScoreColor(vantageScore || 0)}`}>{vantageScore}%</span>
@@ -281,8 +373,8 @@ const Dashboard: React.FC = () => {
   );
 };
 
-const DistributionRow: React.FC<{ label: string; amount: number; percentage: string; color: string; currency: string; isPrivate: boolean }> = ({ label, amount, percentage, color, currency, isPrivate }) => (
-  <div className="group flex items-center justify-between py-4 px-3 rounded-xl hover:bg-white/40 dark:hover:bg-slate-800/40 transition-all cursor-pointer">
+const DistributionRow: React.FC<{ label: string; amount: number; percentage: string; color: string; currency: string; isPrivate: boolean; onClick: () => void }> = ({ label, amount, percentage, color, currency, isPrivate, onClick }) => (
+  <div onClick={onClick} className="group flex items-center justify-between py-4 px-3 rounded-xl hover:bg-white/40 dark:hover:bg-slate-800/40 transition-all cursor-pointer">
     <div className="flex items-center gap-3 flex-1 min-w-0">
       <div className={`w-2.5 h-2.5 rounded-full ${color} shrink-0`}></div>
       <div className="flex flex-col min-w-0">

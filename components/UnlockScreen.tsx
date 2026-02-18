@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, ChartPie, DollarSign, Fingerprint, Delete, AlertCircle, ShieldCheck } from 'lucide-react';
 import { UserProfile } from '../types';
+import { useApp } from '../App';
 
 interface UnlockScreenProps {
   profile: UserProfile;
@@ -9,18 +10,19 @@ interface UnlockScreenProps {
 }
 
 const UnlockScreen: React.FC<UnlockScreenProps> = ({ profile, onUnlock }) => {
+  const { settings } = useApp();
   const [pin, setPin] = useState('');
   const [isError, setIsError] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   useEffect(() => {
-    if (profile.biometricId) {
+    if (profile.biometricId && settings.biometricEnabled) {
       handleBiometricUnlock();
     }
-  }, []);
+  }, [settings.biometricEnabled]);
 
   const handleBiometricUnlock = async () => {
-    if (!profile.biometricId || !window.PublicKeyCredential) return;
+    if (!profile.biometricId || !settings.biometricEnabled || !window.PublicKeyCredential) return;
 
     try {
       setIsAuthenticating(true);
@@ -48,7 +50,7 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({ profile, onUnlock }) => {
         onUnlock();
       }
     } catch (err) {
-      console.warn("Biometric auto-trigger failed or was cancelled.", err);
+      console.warn("Biometric trigger cancelled or failed.", err);
     } finally {
       setIsAuthenticating(false);
     }
@@ -82,7 +84,6 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({ profile, onUnlock }) => {
     <div className="fixed inset-0 z-[500] bg-slate-50 dark:bg-[#020617] flex flex-col items-center justify-center p-4 animate-in fade-in duration-500 overflow-y-auto no-scrollbar">
       <div className="flex flex-col items-center w-full max-w-sm py-8 transition-all duration-500">
         
-        {/* Compact Logo Header */}
         <div className="w-16 h-16 rounded-[1.2rem] bg-blue-600 shadow-2xl shadow-blue-500/30 flex items-center justify-center text-white mb-4 relative animate-float">
           <ChartPie size={28} />
           <div className="absolute -top-1 -right-1 bg-blue-600 border-[2px] border-white dark:border-slate-900 rounded-full w-6 h-6 flex items-center justify-center shadow-lg">
@@ -94,7 +95,7 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({ profile, onUnlock }) => {
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-6">Welcome back, {profile.name.split(' ')[0]}</p>
 
         <div className="flex flex-col items-center w-full">
-          {profile.biometricId && (
+          {profile.biometricId && settings.biometricEnabled && (
             <button 
               onClick={handleBiometricUnlock}
               disabled={isAuthenticating}
@@ -107,12 +108,11 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({ profile, onUnlock }) => {
                 </div>
               </div>
               <span className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-500">
-                {isAuthenticating ? 'Verifying...' : 'Automatic Biometrics'}
+                {isAuthenticating ? 'Verifying...' : 'Unlock with Touch/Face'}
               </span>
             </button>
           )}
 
-          {/* PIN Indicators */}
           <div className={`flex gap-5 mb-8 transition-transform ${isError ? 'animate-bounce text-rose-500' : ''}`}>
             {[0, 1, 2, 3].map(i => (
               <div 
@@ -125,14 +125,6 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({ profile, onUnlock }) => {
             ))}
           </div>
 
-          {isError && (
-            <div className="flex items-center gap-1.5 text-rose-500 mb-6 animate-in fade-in zoom-in duration-300 bg-rose-500/10 px-4 py-1.5 rounded-full">
-              <AlertCircle size={12} />
-              <span className="text-[9px] font-black uppercase tracking-widest">Access Denied</span>
-            </div>
-          )}
-
-          {/* Responsive Pin Pad Layout */}
           <div className="grid grid-cols-3 gap-x-6 gap-y-4 md:gap-x-8 md:gap-y-6">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
               <button 
@@ -143,8 +135,8 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({ profile, onUnlock }) => {
                 {num}
               </button>
             ))}
-            <div className="w-14 h-14 md:w-16 md:h-16 flex items-center justify-center">
-              {profile.biometricId && <ShieldCheck size={24} className="text-emerald-500/30" />}
+            <div className="w-14 h-14 md:w-16 md:h-16 flex items-center justify-center opacity-10">
+              <Lock size={20} />
             </div>
             <button 
               onClick={() => handlePinInput('0')}
@@ -160,10 +152,6 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({ profile, onUnlock }) => {
             </button>
           </div>
         </div>
-      </div>
-
-      <div className="mt-4 text-center opacity-30 pb-4">
-        <p className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-500">Vantage Encryption v2.6</p>
       </div>
     </div>
   );

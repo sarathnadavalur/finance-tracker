@@ -94,13 +94,18 @@ export interface UserProfile {
   customApiKey?: string;
 }
 
+export type FontSizeLabel = 'S' | 'M' | 'L' | 'XL';
+
 export interface AppSettings {
   darkMode: boolean;
-  fontSize: number;
+  fontSize: FontSizeLabel;
   privacyMode: boolean;
   autoSync: boolean;
   selectedModel: string;
   developerMode: boolean;
+  tradingEnabled: boolean;
+  aiEnabled: boolean;
+  biometricEnabled: boolean;
 }
 
 export interface ExchangeRates {

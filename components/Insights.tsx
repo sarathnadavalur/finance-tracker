@@ -38,7 +38,7 @@ const Insights: React.FC = () => {
 
     try {
       // STRICT: prioritize the manual key
-      const apiKeyToUse = profile?.customApiKey || process.env.API_KEY || '';
+      const apiKeyToUse = profile?.customApiKey;
       const ai = new GoogleGenAI({ apiKey: apiKeyToUse });
       const model = settings.selectedModel || 'gemini-3-flash-preview';
 
