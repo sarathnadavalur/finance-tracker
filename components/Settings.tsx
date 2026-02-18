@@ -19,7 +19,8 @@ import {
   BarChart3,
   Lock,
   Sparkles,
-  Delete
+  Delete,
+  LayoutTemplate
 } from 'lucide-react';
 import { UserProfile, Portfolio, Transaction, AppSettings, LogEntry, FontSizeLabel } from '../types';
 
@@ -226,18 +227,6 @@ const Settings: React.FC = () => {
             } 
           />
           <SettingsRow 
-            icon={<BarChart3 size={16} className="text-emerald-500" />} 
-            label="Trading Hub" 
-            action={
-              <button 
-                onClick={() => setSettings({...settings, tradingEnabled: !settings.tradingEnabled})}
-                className={`w-10 h-6 rounded-full transition-colors relative ${settings.tradingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-700'}`}
-              >
-                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-md transition-all ${settings.tradingEnabled ? 'right-1' : 'left-1'}`}></div>
-              </button>
-            } 
-          />
-          <SettingsRow 
             icon={<Type size={16} className="text-purple-500" />} 
             label="Font Size" 
             action={
@@ -252,6 +241,33 @@ const Settings: React.FC = () => {
                   </button>
                 ))}
               </div>
+            } 
+          />
+        </SettingsGroup>
+
+        <SettingsGroup title="Beta Lab (Experimental)">
+          <SettingsRow 
+            icon={<LayoutTemplate size={16} className="text-blue-500" />} 
+            label="Try New Dashboard (V2)" 
+            action={
+              <button 
+                onClick={() => setSettings({...settings, dashboardV2Enabled: !settings.dashboardV2Enabled})}
+                className={`w-10 h-6 rounded-full transition-colors relative ${settings.dashboardV2Enabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+              >
+                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-md transition-all ${settings.dashboardV2Enabled ? 'right-1' : 'left-1'}`}></div>
+              </button>
+            } 
+          />
+          <SettingsRow 
+            icon={<BarChart3 size={16} className="text-emerald-500" />} 
+            label="Enable Trading Hub" 
+            action={
+              <button 
+                onClick={() => setSettings({...settings, tradingEnabled: !settings.tradingEnabled})}
+                className={`w-10 h-6 rounded-full transition-colors relative ${settings.tradingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+              >
+                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-md transition-all ${settings.tradingEnabled ? 'right-1' : 'left-1'}`}></div>
+              </button>
             } 
           />
         </SettingsGroup>

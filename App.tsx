@@ -28,6 +28,7 @@ import Insights from './components/Insights';
 import Transactions from './components/Transactions';
 import LatestNews from './components/LatestNews';
 import Trading from './components/Trading';
+import Analytics from './components/Analytics';
 import AuthGateway from './components/AuthGateway';
 import UnlockScreen from './components/UnlockScreen';
 import PortfolioForm from './components/PortfolioForm';
@@ -84,7 +85,7 @@ interface AppContextType {
   clearLogs: () => void;
 }
 
-type TabType = 'dashboard' | 'transactions' | 'portfolios' | 'settings' | 'insights' | 'news' | 'trading';
+type TabType = 'dashboard' | 'transactions' | 'portfolios' | 'settings' | 'insights' | 'news' | 'trading' | 'analytics';
 
 const AppContext = createContext<AppContextType | null>(null);
 
@@ -120,7 +121,8 @@ const App: React.FC = () => {
     developerMode: false,
     tradingEnabled: false,
     aiEnabled: true,
-    biometricEnabled: true
+    biometricEnabled: true,
+    dashboardV2Enabled: false
   });
   const [rates, setRates] = useState<ExchangeRates>(INITIAL_RATES);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -575,6 +577,7 @@ const App: React.FC = () => {
             {activeTab === 'insights' && settings.aiEnabled && <Insights />}
             {activeTab === 'news' && <LatestNews />}
             {activeTab === 'settings' && <Settings />}
+            {activeTab === 'analytics' && <Analytics />}
           </div>
         </main>
 

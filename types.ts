@@ -106,6 +106,7 @@ export interface AppSettings {
   tradingEnabled: boolean;
   aiEnabled: boolean;
   biometricEnabled: boolean;
+  dashboardV2Enabled: boolean;
 }
 
 export interface ExchangeRates {

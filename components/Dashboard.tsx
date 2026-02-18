@@ -1,11 +1,201 @@
 
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useApp } from '../App';
-import { Currency, PortfolioType, Portfolio } from '../types';
-import { Info, ChevronDown, Zap, Plus, Receipt, TrendingUp, TrendingDown, ArrowUpRight, RefreshCcw, Clock, Activity, Sparkles, BrainCircuit, ShieldAlert, CheckCircle2, Loader2, X, AlertCircle, ChevronRight, Brain } from 'lucide-react';
+import { Currency, PortfolioType, Portfolio, Transaction } from '../types';
+import { db } from '../db';
+import { Info, ChevronDown, Zap, Plus, Receipt, TrendingUp, TrendingDown, ArrowUpRight, RefreshCcw, Clock, Activity, Sparkles, BrainCircuit, ShieldAlert, CheckCircle2, Loader2, X, AlertCircle, ChevronRight, Brain, Landmark, BarChart3, ArrowDownLeft } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 
 const Dashboard: React.FC = () => {
+  const { settings } = useApp();
+  return settings.dashboardV2Enabled ? <DashboardV2 /> : <DashboardV1 />;
+};
+
+const DashboardV2: React.FC = () => {
+  const { portfolios, baseCurrency, setBaseCurrency, rates, settings, setIsPortfolioModalOpen, setIsTxModalOpen, setActiveTab, setActivePortfolioSection, profile } = useApp();
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+
+  useEffect(() => {
+    const fetchRecent = async () => {
+      const all = await db.getAllTransactions();
+      setRecentTransactions(all.sort((a, b) => b.date - a.date).slice(0, 5));
+    };
+    fetchRecent();
+  }, []);
+
+  const calculateRemainingEMI = (p: Portfolio) => {
+    if (p.type !== PortfolioType.EMIS || !p.totalEmiValue || !p.monthlyEmiAmount || !p.emiStartDate) return p.value;
+    const total = p.totalEmiValue;
+    const monthly = p.monthlyEmiAmount;
+    const [y, m, d] = p.emiStartDate.split('-').map(Number);
+    if (!y || !m || !d) return p.value;
+    const pDay = parseInt(p.paymentDate || '1') || 1;
+    let firstPaymentDate;
+    if (pDay >= d) firstPaymentDate = new Date(y, m - 1, pDay);
+    else firstPaymentDate = new Date(y, m, pDay);
+    const today = new Date();
+    const todayStripped = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const firstStripped = new Date(firstPaymentDate.getFullYear(), firstPaymentDate.getMonth(), firstPaymentDate.getDate());
+    let paymentsMade = 0;
+    if (todayStripped >= firstStripped) {
+      const diffMonths = (todayStripped.getFullYear() - firstStripped.getFullYear()) * 12 + (todayStripped.getMonth() - firstStripped.getMonth());
+      paymentsMade = todayStripped.getDate() >= pDay ? diffMonths + 1 : diffMonths;
+    }
+    return Math.max(0, total - (paymentsMade * monthly));
+  };
+
+  const totals = useMemo(() => {
+    let savings = 0, investments = 0, debt = 0, emiTotal = 0;
+    portfolios.forEach(p => {
+      const liveValue = p.type === PortfolioType.EMIS ? calculateRemainingEMI(p) : p.value;
+      const valInBase = p.currency === baseCurrency ? liveValue : liveValue * rates[p.currency][baseCurrency];
+      switch(p.type) {
+        case PortfolioType.SAVINGS: savings += valInBase; break;
+        case PortfolioType.INVESTMENTS: investments += valInBase; break;
+        case PortfolioType.DEBTS: debt += valInBase; break;
+        case PortfolioType.EMIS: emiTotal += valInBase; break;
+      }
+    });
+    return {
+      savings, investments, debt, emiTotal,
+      net: (savings + investments) - (debt + emiTotal)
+    };
+  }, [portfolios, baseCurrency, rates]);
+
+  const formatCurrency = (val: number) => {
+    const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: baseCurrency, maximumFractionDigits: 0 }).format(val);
+    return settings.privacyMode ? '••••••' : formatted;
+  };
+
+  const navigateToSection = (type: PortfolioType) => {
+    setActivePortfolioSection(type);
+    setActiveTab('portfolios');
+    if (navigator.vibrate) navigator.vibrate(10);
+  };
+
+  const otherCurrencies = Object.values(Currency).filter(c => c !== baseCurrency);
+
+  return (
+    <div className="w-full space-y-8 flex flex-col items-stretch pb-10 animate-in fade-in duration-700">
+      
+      {/* Header V2 */}
+      <div className="flex flex-col px-1">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Welcome back</h1>
+        <p className="text-sm font-medium text-slate-400">Finance Tracker</p>
+      </div>
+
+      {/* Main Balance Card V2 */}
+      <div className="bg-slate-900 dark:bg-slate-900/40 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden group">
+         <div className="absolute top-0 right-0 w-48 h-48 bg-blue-500/10 rounded-full blur-[60px] -mr-16 -mt-16"></div>
+         <div className="relative z-10 flex flex-col gap-1">
+           <span className="text-xs font-bold text-slate-400 uppercase tracking-widest opacity-80">Total Balance</span>
+           <h2 className={`text-5xl font-black tracking-tighter tabular-nums transition-all duration-700 ${settings.privacyMode ? 'blur-xl' : ''}`}>
+             {formatCurrency(totals.net)}
+           </h2>
+           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">
+             Across {portfolios.length} portfolio items
+           </p>
+         </div>
+      </div>
+
+      {/* Quick Actions V2 */}
+      <div className="flex items-center justify-start gap-8 px-2 overflow-x-auto no-scrollbar py-2">
+         <QuickActionV2 icon={<Plus size={22} />} label="Add Transaction" onClick={() => setIsTxModalOpen(true)} />
+         <QuickActionV2 icon={<Landmark size={22} />} label="New Account" onClick={() => setIsPortfolioModalOpen(true)} />
+         <QuickActionV2 icon={<BarChart3 size={22} />} label="Analytics" onClick={() => setActiveTab('analytics')} />
+      </div>
+
+      {/* FX Exchange Rates for V2 */}
+      <div className="w-full glass rounded-2xl p-4 flex items-center justify-between shadow-sm border-white/30 mb-2">
+        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar flex-1 mr-4">
+          {otherCurrencies.map(curr => (
+            <div key={curr} className="flex items-center gap-2 shrink-0 bg-slate-100/50 dark:bg-slate-800/50 px-3 py-1.5 rounded-lg border border-white/40 dark:border-white/5">
+              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{baseCurrency}/{curr}</span>
+              <span className={`text-[12px] font-black text-slate-900 dark:text-white tabular-nums`}>
+                {rates[baseCurrency][curr].toFixed(4)}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5 bg-emerald-500/10 px-2 py-1 rounded-lg shrink-0">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+        </div>
+      </div>
+
+      {/* Portfolio Grid Card V2 */}
+      <div className="space-y-4 px-1">
+         <h3 className="text-lg font-bold text-slate-900 dark:text-white">Portfolio</h3>
+         <div className="bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 rounded-[2.5rem] p-8 shadow-premium grid grid-cols-2 gap-y-8">
+            <MiniStatV2 label="Total Investments" value={totals.investments} currency={baseCurrency} isPrivate={settings.privacyMode} onClick={() => navigateToSection(PortfolioType.INVESTMENTS)} />
+            <MiniStatV2 label="Total Savings" value={totals.savings} currency={baseCurrency} isPrivate={settings.privacyMode} onClick={() => navigateToSection(PortfolioType.SAVINGS)} />
+            <MiniStatV2 label="Total Debt" value={totals.debt} currency={baseCurrency} color="text-rose-500" isPrivate={settings.privacyMode} onClick={() => navigateToSection(PortfolioType.DEBTS)} />
+            <MiniStatV2 label="Total EMIs" value={totals.emiTotal} currency={baseCurrency} color="text-amber-500" isPrivate={settings.privacyMode} onClick={() => navigateToSection(PortfolioType.EMIS)} />
+         </div>
+      </div>
+
+      {/* Recent Transactions V2 */}
+      <div className="space-y-4 px-1 pb-10">
+         <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recent Transactions</h3>
+            <button onClick={() => setActiveTab('transactions')} className="text-xs font-bold text-blue-500 uppercase tracking-widest">View All</button>
+         </div>
+         <div className="bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 rounded-[2.5rem] p-6 shadow-premium space-y-4">
+            {recentTransactions.length === 0 ? (
+               <p className="text-center py-6 text-xs text-slate-400 font-bold uppercase tracking-widest">No Activity Recorded</p>
+            ) : (
+               recentTransactions.map(tx => (
+                  <TransactionRowV2 key={tx.id} tx={tx} portfolios={portfolios} isPrivate={settings.privacyMode} baseCurrency={baseCurrency} />
+               ))
+            )}
+         </div>
+      </div>
+    </div>
+  );
+};
+
+const QuickActionV2: React.FC<{ icon: React.ReactNode; label: string; onClick: () => void }> = ({ icon, label, onClick }) => (
+  <button onClick={onClick} className="flex flex-col items-center gap-2 group active:scale-95 transition-all">
+    <div className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 flex items-center justify-center text-blue-500 shadow-sm group-hover:shadow-glow/20 transition-all">
+      {icon}
+    </div>
+    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tight text-center max-w-[70px] leading-tight">{label}</span>
+  </button>
+);
+
+const MiniStatV2: React.FC<{ label: string; value: number; currency: string; color?: string; isPrivate: boolean; onClick: () => void }> = ({ label, value, currency, color = "text-slate-900 dark:text-white", isPrivate, onClick }) => (
+  <div className="flex flex-col gap-1 cursor-pointer group active:opacity-60 transition-opacity" onClick={onClick}>
+    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{label}</span>
+    <span className={`text-xl font-black tabular-nums transition-all ${color} ${isPrivate ? 'blur-md opacity-30' : ''}`}>
+      {new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value)}
+    </span>
+  </div>
+);
+
+const TransactionRowV2: React.FC<{ tx: Transaction; portfolios: Portfolio[]; isPrivate: boolean; baseCurrency: string }> = ({ tx, portfolios, isPrivate, baseCurrency }) => {
+  const p = portfolios.find(item => item.id === tx.portfolioId);
+  const currency = p?.currency || baseCurrency;
+  
+  return (
+    <div className="flex items-center justify-between group">
+      <div className="flex items-center gap-4">
+         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tx.type === 'income' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+            {tx.type === 'income' ? <ArrowDownLeft size={18} /> : <div className="text-slate-300">...</div>}
+         </div>
+         <div className="flex flex-col">
+            <span className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-[140px]">{tx.category || 'Sample Transaction'}</span>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+              {new Date(tx.date).toLocaleDateString() || 'Invalid Date'}
+            </span>
+         </div>
+      </div>
+      <span className={`text-sm font-black tabular-nums ${tx.type === 'income' ? 'text-emerald-500' : 'text-slate-900 dark:text-white'} ${isPrivate ? 'blur-md opacity-30' : ''}`}>
+        {tx.type === 'income' ? '+' : ''}{new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(tx.amount)}
+      </span>
+    </div>
+  );
+};
+
+const DashboardV1: React.FC = () => {
   const { portfolios, baseCurrency, setBaseCurrency, rates, settings, setIsPortfolioModalOpen, setIsTxModalOpen, lastUpdated, isSyncing, vantageScore, vantageAdvice, refreshVantageScore, setActiveTab, setActivePortfolioSection } = useApp();
   
   const [showAdvicePopup, setShowAdvicePopup] = useState(false);
