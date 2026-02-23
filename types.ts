@@ -14,6 +14,7 @@ export enum Currency {
 
 export enum TransactionCategory {
   FOOD = 'Food',
+  FOOD_ORDERS = 'Food Orders',
   RENT = 'Rent',
   UTILITIES = 'Utilities',
   GROCERY = 'Grocery',

@@ -139,6 +139,8 @@ const App: React.FC = () => {
   const backgroundTimeRef = useRef<number | null>(null);
   const lockGracePeriodRef = useRef<number>(3 * 60 * 1000); 
 
+  const pointerStartRef = useRef<{ x: number, y: number } | null>(null);
+
   const hasApiKey = !!(profile?.customApiKey);
 
   const addLog = useCallback((message: string, type: 'error' | 'info' = 'info', context?: string) => {
@@ -312,9 +314,6 @@ const App: React.FC = () => {
   useEffect(() => {
     if (isReady) db.saveSettings(settings);
     
-    // Scaling and Font Logic
-    // We use rem-based scaling. Tailwind uses rems for everything (padding, sizes, text).
-    // By changing the root font size, we scale the whole application perfectly.
     const baseFontSize = 16;
     const sizes = { S: baseFontSize * 0.85, M: baseFontSize, L: baseFontSize * 1.15, XL: baseFontSize * 1.3 };
     const scaledSize = (sizes[settings.fontSize] || baseFontSize) * (settings.scaleFactor || 1);
@@ -361,6 +360,46 @@ const App: React.FC = () => {
     const interval = setInterval(fetchRealRates, 30000); 
     return () => clearInterval(interval);
   }, []);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    pointerStartRef.current = {
+      x: e.clientX,
+      y: e.clientY
+    };
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!pointerStartRef.current) return;
+    
+    const deltaX = e.clientX - pointerStartRef.current.x;
+    const deltaY = e.clientY - pointerStartRef.current.y;
+    
+    // Swipe detection threshold: 70px horizontal, less than 50px vertical
+    if (Math.abs(deltaX) > 70 && Math.abs(deltaY) < 50) {
+      const tabs: TabType[] = ['dashboard', 'portfolios'];
+      if (settings.tradingEnabled) tabs.push('trading');
+      tabs.push('transactions');
+      if (settings.aiEnabled) tabs.push('insights');
+      tabs.push('news', 'settings');
+
+      // Exclude analytics from regular swipe loops to keep it hidden as requested
+      if (activeTab === 'analytics') return;
+
+      const currentIndex = tabs.indexOf(activeTab);
+      if (currentIndex !== -1) {
+        if (deltaX > 0 && currentIndex > 0) {
+          // Swipe Right -> Prev Tab
+          setActiveTab(tabs[currentIndex - 1]);
+          if (navigator.vibrate) navigator.vibrate(10);
+        } else if (deltaX < 0 && currentIndex < tabs.length - 1) {
+          // Swipe Left -> Next Tab
+          setActiveTab(tabs[currentIndex + 1]);
+          if (navigator.vibrate) navigator.vibrate(10);
+        }
+      }
+    }
+    pointerStartRef.current = null;
+  };
 
   const addPortfolio = (p: Omit<Portfolio, 'updatedAt'>) => {
     const newP = { ...p, updatedAt: Date.now() };
@@ -575,7 +614,11 @@ const App: React.FC = () => {
           </div>
         </nav>
 
-        <main className="flex-1 overflow-y-auto pb-32 md:pb-8 scroll-smooth scroll-container no-scrollbar w-full">
+        <main 
+          onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
+          className="flex-1 overflow-y-auto pb-32 md:pb-8 scroll-smooth scroll-container no-scrollbar w-full"
+        >
           <div className="w-full px-5 pt-4 md:px-10 md:pt-10 animate-in fade-in slide-in-from-bottom-5 duration-700 flex flex-col items-stretch max-w-5xl mx-auto">
             {activeTab === 'dashboard' && <Dashboard />}
             {activeTab === 'portfolios' && <Portfolios />}

@@ -101,24 +101,24 @@ const PortfolioForm: React.FC<PortfolioFormProps> = ({ onClose, editingPortfolio
     onClose();
   };
 
-  const labelStyle = "text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5 block ml-1";
-  const inputStyle = "w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-white/5 rounded-2xl px-5 py-3.5 font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all placeholder:text-slate-300 text-sm";
+  const labelStyle = "text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2.5 block ml-3 opacity-70";
+  const inputStyle = "w-full bg-slate-100/60 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/10 rounded-[2rem] px-7 py-5 font-black text-slate-900 dark:text-white outline-none focus:ring-8 focus:ring-blue-500/10 transition-all text-base placeholder:opacity-30 shadow-inner-light";
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-        <div className="p-6 md:p-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300 overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 max-h-[95vh] flex flex-col my-auto">
+        <div className="p-6 md:p-8 overflow-y-auto no-scrollbar">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-3xl font-black tracking-tighter text-slate-900 dark:text-white">
               {editingPortfolio ? 'Edit Portfolio' : 'New Portfolio'}
             </h2>
-            <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-              <X size={24} className="text-slate-900 dark:text-white" />
+            <button onClick={onClose} className="p-3 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 active:scale-90 transition-all">
+              <X size={26} />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
               <label className={labelStyle}>Portfolio Name</label>
               <input 
                 required
@@ -130,8 +130,8 @@ const PortfolioForm: React.FC<PortfolioFormProps> = ({ onClose, editingPortfolio
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="space-y-2">
                 <label className={labelStyle}>Category</label>
                 <select 
                   className={inputStyle + " appearance-none cursor-pointer"}
@@ -141,7 +141,7 @@ const PortfolioForm: React.FC<PortfolioFormProps> = ({ onClose, editingPortfolio
                   {Object.values(PortfolioType).map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <label className={labelStyle}>Currency</label>
                 <select 
                   className={inputStyle + " appearance-none cursor-pointer"}
@@ -153,7 +153,7 @@ const PortfolioForm: React.FC<PortfolioFormProps> = ({ onClose, editingPortfolio
               </div>
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-2">
               <label className={labelStyle}>
                 {isEMI ? 'Current Owed Amount' : 'Available Balance'}
               </label>
@@ -162,30 +162,30 @@ const PortfolioForm: React.FC<PortfolioFormProps> = ({ onClose, editingPortfolio
                 type="number"
                 step="0.01"
                 readOnly={isEMI}
-                className={`${inputStyle} ${isEMI ? 'text-blue-600 dark:text-blue-400 bg-blue-50/20' : ''}`}
+                className={`${inputStyle} ${isEMI ? 'text-blue-600 dark:text-blue-400 bg-blue-50/20' : ''} text-2xl tracking-tight`}
                 value={formData.value}
                 onChange={(e) => setFormData({...formData, value: e.target.value})}
               />
             </div>
 
             {isEMI && (
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-slate-100 dark:border-white/5 space-y-4 animate-in slide-in-from-top-2 duration-300">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
+              <div className="p-6 bg-slate-50 dark:bg-slate-800/40 rounded-[2.5rem] border border-slate-100 dark:border-white/5 space-y-6 animate-in slide-in-from-top-2 duration-300">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-2">
                     <label className={labelStyle}>Principal</label>
                     <input type="number" step="0.01" placeholder="0.00" className={inputStyle} value={formData.totalEmiValue} onChange={(e) => setFormData({...formData, totalEmiValue: e.target.value})} />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     <label className={labelStyle}>Monthly EMI</label>
                     <input type="number" step="0.01" placeholder="0.00" className={inputStyle} value={formData.monthlyEmiAmount} onChange={(e) => setFormData({...formData, monthlyEmiAmount: e.target.value})} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-2">
                     <label className={labelStyle}>Start Date</label>
                     <input type="date" className={inputStyle} value={formData.emiStartDate} onChange={(e) => setFormData({...formData, emiStartDate: e.target.value})} />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     <label className={labelStyle}>Bill Date</label>
                     <input type="number" min="1" max="31" placeholder="1" className={inputStyle} value={formData.paymentDate} onChange={(e) => setFormData({...formData, paymentDate: e.target.value})} />
                   </div>
@@ -193,17 +193,17 @@ const PortfolioForm: React.FC<PortfolioFormProps> = ({ onClose, editingPortfolio
               </div>
             )}
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-4 pt-6">
               <button 
                 type="button" 
                 onClick={onClose}
-                className="flex-1 px-6 py-4 rounded-2xl font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-all text-sm"
+                className="flex-1 px-8 py-5 rounded-[1.8rem] font-black text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-all text-[13px] uppercase tracking-widest"
               >
                 Cancel
               </button>
               <button 
                 type="submit"
-                className="flex-1 px-6 py-4 rounded-2xl font-bold bg-blue-600 text-white shadow-lg active:scale-[0.98] transition-all text-sm"
+                className="flex-1 px-8 py-5 rounded-[1.8rem] font-black bg-blue-600 text-white shadow-premium active:scale-[0.98] transition-all text-[13px] uppercase tracking-widest shadow-glow"
               >
                 {editingPortfolio ? 'Update' : 'Create'}
               </button>

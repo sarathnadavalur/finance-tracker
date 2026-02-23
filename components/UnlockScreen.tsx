@@ -92,7 +92,7 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({ profile, onUnlock }) => {
         </div>
 
         <h2 className="text-xl font-black text-slate-900 dark:text-white mb-0.5">Vantage Secure</h2>
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-6">Welcome back, {profile.name.split(' ')[0]}</p>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-6">Welcome back, {(profile?.name || '').split(' ')[0]}</p>
 
         <div className="flex flex-col items-center w-full">
           {profile.biometricId && settings.biometricEnabled && (

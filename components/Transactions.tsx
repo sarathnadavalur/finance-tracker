@@ -79,22 +79,22 @@ export const TransactionModal: React.FC<{
   };
 
   const expenseCategories = [
-    TransactionCategory.FOOD, TransactionCategory.RENT, TransactionCategory.UTILITIES,
+    TransactionCategory.FOOD, TransactionCategory.FOOD_ORDERS, TransactionCategory.RENT, TransactionCategory.UTILITIES,
     TransactionCategory.GROCERY, TransactionCategory.ENTERTAINMENT, TransactionCategory.OTHER
   ];
 
   const incomeCategories = [TransactionCategory.SALARY, TransactionCategory.OTHER];
 
-  const labelStyle = "text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2.5 block ml-3 opacity-60";
-  const inputStyle = "w-full bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-white/5 rounded-[1.8rem] px-6 py-4.5 font-black text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-500/10 transition-all text-base placeholder:opacity-40";
+  const labelStyle = "text-[12px] font-black uppercase tracking-[0.25em] text-slate-400 mb-3 block ml-4 opacity-70";
+  const inputStyle = "w-full bg-slate-100/60 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/10 rounded-[2.2rem] px-8 py-5.5 font-black text-slate-900 dark:text-white outline-none focus:ring-8 focus:ring-blue-500/10 transition-all text-lg placeholder:opacity-30 shadow-inner-light";
 
   return (
-    <div className="fixed inset-0 z-[110] bg-slate-900/70 backdrop-blur-xl flex items-end sm:items-center sm:justify-center sm:p-6 animate-in fade-in duration-500">
-      <div className="w-full sm:max-w-md bg-white dark:bg-slate-900 rounded-t-[3.5rem] sm:rounded-[3.5rem] p-10 shadow-premium animate-in slide-in-from-bottom duration-700">
-        <div className="flex justify-between items-center mb-10">
+    <div className="fixed inset-0 z-[110] bg-slate-900/70 backdrop-blur-xl flex items-end sm:items-center sm:justify-center sm:p-6 animate-in fade-in duration-500 overflow-y-auto">
+      <div className="w-full sm:max-w-md bg-white dark:bg-slate-900 rounded-t-[3.5rem] sm:rounded-[3.5rem] p-6 sm:p-10 shadow-premium animate-in slide-in-from-bottom duration-700 max-h-[95vh] overflow-y-auto no-scrollbar sm:my-auto">
+        <div className="flex justify-between items-center mb-8 sm:mb-10">
           <div className="flex flex-col">
             <h3 className="text-3xl font-black tracking-tighter text-slate-900 dark:text-white">
-              {txToEdit ? 'Modify Entry' : 'Secure Journal'}
+              {txToEdit ? 'Modify Entry' : 'Add a Transaction'}
             </h3>
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 opacity-60">Vault Transaction</p>
           </div>
@@ -135,7 +135,7 @@ export const TransactionModal: React.FC<{
             </div>
           )}
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className={labelStyle}>Financial Amount</label>
             <div className="relative">
               <input 
@@ -143,30 +143,30 @@ export const TransactionModal: React.FC<{
                 type="number"
                 step="0.01"
                 placeholder="0.00"
-                className={inputStyle + " text-3xl tracking-tighter tabular-nums text-center"}
+                className={inputStyle + " text-5xl tracking-tighter tabular-nums text-center py-8"}
                 value={formData.amount}
                 onChange={(e) => setFormData({...formData, amount: e.target.value})}
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-5">
-            <div className="space-y-2">
+          <div className="space-y-6">
+            <div className="space-y-3">
               <label className={labelStyle}>Category</label>
               <select 
-                className={inputStyle + " appearance-none text-center px-2"}
+                className={inputStyle + " appearance-none text-center"}
                 value={formData.category}
                 onChange={(e) => setFormData({...formData, category: e.target.value as TransactionCategory})}
               >
                 {formData.type === 'expense' ? expenseCategories.map(c => <option key={c} value={c}>{c}</option>) : incomeCategories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <label className={labelStyle}>Note / Ref</label>
               <input 
                 type="text"
                 placeholder="Reference..."
-                className={inputStyle + " text-center px-2"}
+                className={inputStyle + " text-center"}
                 value={formData.note}
                 onChange={(e) => setFormData({...formData, note: e.target.value})}
               />
@@ -426,10 +426,10 @@ const Transactions: React.FC = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-3 mb-1">
-                            <span className="font-black text-slate-900 dark:text-white text-[17px] tracking-tight truncate leading-none">{tx.category}</span>
+                            <span className="font-black text-slate-900 dark:text-white text-[17px] tracking-tight truncate leading-none">{tx.note || p?.name || 'Vantage Record'}</span>
                             <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest shrink-0 opacity-60">{formatDate(tx.date)}</span>
                           </div>
-                          <p className="text-[13px] text-slate-500 dark:text-slate-400 font-bold tracking-tight line-clamp-1 italic opacity-60">{tx.note || p?.name || 'Vantage Record'}</p>
+                          <p className="text-[13px] text-slate-500 dark:text-slate-400 font-bold tracking-tight line-clamp-1 italic opacity-60">{tx.category} • {p?.name || 'Unknown Wallet'}</p>
                         </div>
                       </div>
                       <div className="text-right pl-5">
