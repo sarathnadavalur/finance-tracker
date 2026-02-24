@@ -11,6 +11,7 @@ import {
   Trash, BarChart3, Lock, Sparkles,
   Delete, LayoutTemplate, Maximize
 } from 'lucide-react';
+import { GoogleGenAI } from '@google/genai';
 import { UserProfile, AppSettings, LogEntry, FontSizeLabel } from '../types';
 
 const Settings: React.FC = () => {
@@ -22,6 +23,36 @@ const Settings: React.FC = () => {
   const [dataActionLoading, setDataActionLoading] = useState(false);
   const [localApiKey, setLocalApiKey] = useState(profile?.customApiKey || '');
   const [isSavingKey, setIsSavingKey] = useState(false);
+  const [availableModels, setAvailableModels] = useState<any[]>([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+
+  useEffect(() => {
+    const fetchModels = async () => {
+      if (!settings.aiEnabled) return;
+      
+      const apiKeyToUse = profile?.customApiKey || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+      if (!apiKeyToUse) return;
+
+      setIsLoadingModels(true);
+      try {
+        const ai = new GoogleGenAI({ apiKey: apiKeyToUse });
+        const models = [];
+        const response = await ai.models.list();
+        for await (const model of response) {
+          if (model.name.includes('gemini')) {
+            models.push(model);
+          }
+        }
+        setAvailableModels(models);
+      } catch (e) {
+        console.error("Failed to fetch models", e);
+      } finally {
+        setIsLoadingModels(false);
+      }
+    };
+
+    fetchModels();
+  }, [settings.aiEnabled, profile?.customApiKey]);
 
   useEffect(() => {
     if (shouldOpenProfile) {
@@ -54,13 +85,14 @@ const Settings: React.FC = () => {
   const handleExport = async () => {
     setDataActionLoading(true);
     try {
-      const [portfolios, profileData, settingsData, transactions, goals, trades] = await Promise.all([
+      const [portfolios, profileData, settingsData, transactions, goals, trades, snapshots] = await Promise.all([
         db.getAllPortfolios(),
         db.getProfile(),
         db.getSettings(),
         db.getAllTransactions(),
         db.getAllGoals(),
-        db.getAllTrades()
+        db.getAllTrades(),
+        db.getAllSnapshots()
       ]);
       const sanitizedProfile = profileData ? { ...profileData } : null;
       if (sanitizedProfile) { 
@@ -69,14 +101,15 @@ const Settings: React.FC = () => {
         delete sanitizedProfile.pin;
       }
       const backup = { 
-        version: '2.5.0', 
+        version: '2.6.0', 
         timestamp: Date.now(), 
         profile: sanitizedProfile, 
         settings: settingsData, 
         portfolios, 
         transactions,
         goals,
-        trades
+        trades,
+        snapshots
       };
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -110,6 +143,9 @@ const Settings: React.FC = () => {
         }
         if (data.trades) {
           for (const tr of data.trades) await db.saveTrade(tr);
+        }
+        if (data.snapshots) {
+          for (const s of data.snapshots) await db.saveSnapshot(s);
         }
         if (data.settings) {
           const newSettings = { ...settings, ...data.settings };
@@ -170,11 +206,46 @@ const Settings: React.FC = () => {
         <SettingsGroup title="Intelligence Core">
           <SettingsRow icon={<Sparkles size={16} className="text-blue-500" />} label="Enable AI Intelligence" action={<button onClick={() => setSettings({...settings, aiEnabled: !settings.aiEnabled})} className={`w-10 h-6 rounded-full relative transition-colors ${settings.aiEnabled ? 'bg-blue-600' : 'bg-slate-300'}`}><div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.aiEnabled ? 'right-1' : 'left-1'}`}></div></button>} />
           {settings.aiEnabled && (
-            <div className="p-5 space-y-4">
-              <label className="text-[10px] font-black uppercase text-slate-400">Gemini API Key</label>
-              <div className="flex gap-2">
-                <input type="password" placeholder="Paste key..." className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-5 py-3.5 font-bold text-sm outline-none" value={localApiKey} onChange={(e) => setLocalApiKey(e.target.value)} />
-                <button onClick={handleSaveApiKey} disabled={isSavingKey} className="w-14 h-14 rounded-2xl flex items-center justify-center bg-blue-600 text-white shadow-lg">{isSavingKey ? <RefreshCcw size={20} className="animate-spin" /> : <Save size={20} />}</button>
+            <div className="p-5 space-y-6">
+              <div className="space-y-4">
+                <label className="text-[10px] font-black uppercase text-slate-400">Gemini API Key</label>
+                <div className="flex gap-2">
+                  <input type="password" placeholder="Paste key..." className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-5 py-3.5 font-bold text-sm outline-none" value={localApiKey} onChange={(e) => setLocalApiKey(e.target.value)} />
+                  <button onClick={handleSaveApiKey} disabled={isSavingKey} className="w-14 h-14 rounded-2xl flex items-center justify-center bg-blue-600 text-white shadow-lg">{isSavingKey ? <RefreshCcw size={20} className="animate-spin" /> : <Save size={20} />}</button>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black uppercase text-slate-400">AI Model Selection</label>
+                  {isLoadingModels && <Loader2 size={14} className="animate-spin text-blue-500" />}
+                </div>
+                <div className="relative">
+                  <select 
+                    className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl px-5 py-3.5 font-bold text-sm outline-none appearance-none cursor-pointer"
+                    value={settings.selectedModel || 'gemini-3-flash-preview'}
+                    onChange={(e) => setSettings({...settings, selectedModel: e.target.value})}
+                    disabled={isLoadingModels || availableModels.length === 0}
+                  >
+                    {availableModels.length === 0 && !isLoadingModels && (
+                      <option value={settings.selectedModel}>{settings.selectedModel}</option>
+                    )}
+                    {availableModels.map(model => {
+                      const isFree = model.name.toLowerCase().includes('flash') || model.name.toLowerCase().includes('lite');
+                      return (
+                        <option key={model.name} value={model.name}>
+                          {model.displayName || model.name} {isFree ? '(Free)' : '(Paid)'}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <ChevronRight size={16} className="rotate-90" />
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-500 font-medium">
+                  {availableModels.find(m => m.name === settings.selectedModel)?.description || 'Select the AI model that powers Vantage Insights.'}
+                </p>
               </div>
             </div>
           )}

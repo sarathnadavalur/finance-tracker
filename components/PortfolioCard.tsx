@@ -83,6 +83,19 @@ const PortfolioCard: React.FC<PortfolioCardProps> = ({ portfolio, onEdit }) => {
     return settings.privacyMode ? '••••' : formatted;
   };
 
+  const getOrdinalSuffix = (day: string | undefined) => {
+    if (!day) return '';
+    const d = parseInt(day);
+    if (isNaN(d)) return day;
+    if (d > 3 && d < 21) return d + 'th';
+    switch (d % 10) {
+      case 1: return d + "st";
+      case 2: return d + "nd";
+      case 3: return d + "rd";
+      default: return d + "th";
+    }
+  };
+
   return (
     <>
       <div 
@@ -148,7 +161,7 @@ const PortfolioCard: React.FC<PortfolioCardProps> = ({ portfolio, onEdit }) => {
               )}
               {isEMI && (
                 <span className="text-[9px] font-black uppercase tracking-widest text-amber-500">
-                  {portfolio.paymentDate}th Bill
+                  EMI Date: {getOrdinalSuffix(portfolio.paymentDate)}
                 </span>
               )}
             </div>
@@ -162,7 +175,7 @@ const PortfolioCard: React.FC<PortfolioCardProps> = ({ portfolio, onEdit }) => {
           </p>
           {isEMI && (
             <p className={`text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1.5 transition-all ${settings.privacyMode ? 'blur-sm opacity-30' : ''}`}>
-              EMI: {formatValue(portfolio.monthlyEmiAmount || 0, portfolio.currency)}
+              EMI: {formatValue(portfolio.monthlyEmiAmount || 0, portfolio.currency)} • {getOrdinalSuffix(portfolio.paymentDate)}
             </p>
           )}
           {!isEMI && (

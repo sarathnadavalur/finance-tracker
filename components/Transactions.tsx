@@ -23,6 +23,8 @@ import {
   Activity
 } from 'lucide-react';
 
+import { GeminiInsightButton } from './GeminiInsightButton';
+
 export const TransactionModal: React.FC<{ 
   onClose: () => void; 
   onSuccess: () => void;
@@ -85,37 +87,37 @@ export const TransactionModal: React.FC<{
 
   const incomeCategories = [TransactionCategory.SALARY, TransactionCategory.OTHER];
 
-  const labelStyle = "text-[12px] font-black uppercase tracking-[0.25em] text-slate-400 mb-3 block ml-4 opacity-70";
-  const inputStyle = "w-full bg-slate-100/60 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/10 rounded-[2.2rem] px-8 py-5.5 font-black text-slate-900 dark:text-white outline-none focus:ring-8 focus:ring-blue-500/10 transition-all text-lg placeholder:opacity-30 shadow-inner-light";
+  const labelStyle = "text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2.5 block ml-3 opacity-70";
+  const inputStyle = "w-full h-[60px] bg-slate-100/60 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/10 rounded-[1.8rem] px-6 font-black text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-500/10 transition-all text-base placeholder:opacity-40 shadow-inner-light";
 
   return (
     <div className="fixed inset-0 z-[110] bg-slate-900/70 backdrop-blur-xl flex items-end sm:items-center sm:justify-center sm:p-6 animate-in fade-in duration-500 overflow-y-auto">
-      <div className="w-full sm:max-w-md bg-white dark:bg-slate-900 rounded-t-[3.5rem] sm:rounded-[3.5rem] p-6 sm:p-10 shadow-premium animate-in slide-in-from-bottom duration-700 max-h-[95vh] overflow-y-auto no-scrollbar sm:my-auto">
-        <div className="flex justify-between items-center mb-8 sm:mb-10">
+      <div className="w-full sm:max-w-md bg-white dark:bg-slate-900 rounded-t-[3rem] sm:rounded-[3rem] p-6 sm:p-8 shadow-premium animate-in slide-in-from-bottom duration-700 max-h-[95vh] overflow-y-auto no-scrollbar sm:my-auto">
+        <div className="flex justify-between items-center mb-8">
           <div className="flex flex-col">
-            <h3 className="text-3xl font-black tracking-tighter text-slate-900 dark:text-white">
+            <h3 className="text-2xl font-black tracking-tighter text-slate-900 dark:text-white">
               {txToEdit ? 'Modify Entry' : 'Add a Transaction'}
             </h3>
-            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 opacity-60">Vault Transaction</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 opacity-60 mt-1">Vault Transaction</p>
           </div>
           <button onClick={onClose} className="p-3 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 active:scale-90 tap-scale transition-all">
-            <X size={26} />
+            <X size={24} />
           </button>
         </div>
 
-        <form onSubmit={handleSaveTransaction} className="space-y-8">
-          <div className="flex p-1.5 glass rounded-[2.2rem] shadow-inner-light">
+        <form onSubmit={handleSaveTransaction} className="space-y-6">
+          <div className="flex p-1.5 glass rounded-[2rem] shadow-inner-light">
             <button 
               type="button"
               onClick={() => setFormData({...formData, type: 'expense', category: TransactionCategory.OTHER})}
-              className={`flex-1 py-4 rounded-[1.8rem] font-black text-[11px] uppercase tracking-widest transition-all tap-scale ${formData.type === 'expense' ? 'bg-white dark:bg-slate-700 text-rose-600 shadow-xl' : 'text-slate-400 opacity-60'}`}
+              className={`flex-1 py-3.5 rounded-[1.5rem] font-black text-[11px] uppercase tracking-widest transition-all tap-scale ${formData.type === 'expense' ? 'bg-white dark:bg-slate-700 text-rose-600 shadow-md' : 'text-slate-400 opacity-60'}`}
             >
               Expense
             </button>
             <button 
               type="button"
               onClick={() => setFormData({...formData, type: 'income', category: TransactionCategory.OTHER})}
-              className={`flex-1 py-4 rounded-[1.8rem] font-black text-[11px] uppercase tracking-widest transition-all tap-scale ${formData.type === 'income' ? 'bg-white dark:bg-slate-700 text-emerald-600 shadow-xl' : 'text-slate-400 opacity-60'}`}
+              className={`flex-1 py-3.5 rounded-[1.5rem] font-black text-[11px] uppercase tracking-widest transition-all tap-scale ${formData.type === 'income' ? 'bg-white dark:bg-slate-700 text-emerald-600 shadow-md' : 'text-slate-400 opacity-60'}`}
             >
               Income
             </button>
@@ -124,58 +126,66 @@ export const TransactionModal: React.FC<{
           {!fixedPortfolioId && (
             <div className="space-y-2">
               <label className={labelStyle}>Destination Wallet</label>
-              <select 
-                required
-                className={inputStyle + " appearance-none cursor-pointer"}
-                value={formData.portfolioId}
-                onChange={(e) => setFormData({...formData, portfolioId: e.target.value})}
-              >
-                {portfolios.map(p => <option key={p.id} value={p.id}>{p.name} ({p.currency})</option>)}
-              </select>
+              <div className="relative">
+                <select 
+                  required
+                  className={inputStyle + " appearance-none cursor-pointer pr-10"}
+                  value={formData.portfolioId}
+                  onChange={(e) => setFormData({...formData, portfolioId: e.target.value})}
+                >
+                  {portfolios.map(p => <option key={p.id} value={p.id}>{p.name} ({p.currency})</option>)}
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                  <ChevronRight size={18} className="rotate-90" />
+                </div>
+              </div>
             </div>
           )}
 
-          <div className="space-y-3">
-            <label className={labelStyle}>Financial Amount</label>
-            <div className="relative">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className={labelStyle}>Amount</label>
               <input 
                 required
                 type="number"
                 step="0.01"
                 placeholder="0.00"
-                className={inputStyle + " text-5xl tracking-tighter tabular-nums text-center py-8"}
+                className={inputStyle + " text-xl tracking-tight tabular-nums"}
                 value={formData.amount}
                 onChange={(e) => setFormData({...formData, amount: e.target.value})}
               />
             </div>
+            <div className="space-y-2">
+              <label className={labelStyle}>Category</label>
+              <div className="relative">
+                <select 
+                  className={inputStyle + " appearance-none cursor-pointer pr-10"}
+                  value={formData.category}
+                  onChange={(e) => setFormData({...formData, category: e.target.value as TransactionCategory})}
+                >
+                  {formData.type === 'expense' ? expenseCategories.map(c => <option key={c} value={c}>{c}</option>) : incomeCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                  <ChevronRight size={18} className="rotate-90" />
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <label className={labelStyle}>Category</label>
-              <select 
-                className={inputStyle + " appearance-none text-center"}
-                value={formData.category}
-                onChange={(e) => setFormData({...formData, category: e.target.value as TransactionCategory})}
-              >
-                {formData.type === 'expense' ? expenseCategories.map(c => <option key={c} value={c}>{c}</option>) : incomeCategories.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div className="space-y-3">
-              <label className={labelStyle}>Note / Ref</label>
-              <input 
-                type="text"
-                placeholder="Reference..."
-                className={inputStyle + " text-center"}
-                value={formData.note}
-                onChange={(e) => setFormData({...formData, note: e.target.value})}
-              />
-            </div>
+          <div className="space-y-2">
+            <label className={labelStyle}>Note / Reference</label>
+            <input 
+              type="text"
+              placeholder="Optional reference..."
+              className={inputStyle}
+              value={formData.note}
+              onChange={(e) => setFormData({...formData, note: e.target.value})}
+            />
           </div>
 
           <button 
             type="submit"
-            className="w-full glossy-blue text-white font-black py-6 rounded-[2.2rem] shadow-glow active:scale-95 transition-all tap-scale text-[16px] uppercase tracking-[0.25em] mt-6 shadow-inner-light"
+            className="w-full glossy-blue text-white font-black py-5 rounded-[1.8rem] shadow-glow active:scale-95 transition-all tap-scale text-[14px] uppercase tracking-[0.2em] mt-2 shadow-inner-light"
           >
             {txToEdit ? 'Update Record' : 'Commit Entry'}
           </button>
@@ -186,7 +196,7 @@ export const TransactionModal: React.FC<{
 };
 
 const Transactions: React.FC = () => {
-  const { portfolios, baseCurrency, settings, setIsTxModalOpen } = useApp();
+  const { portfolios, baseCurrency, settings, setIsTxModalOpen, rates } = useApp();
   const [subTab, setSubTab] = useState<'history' | 'insights'>('history');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -289,6 +299,25 @@ const Transactions: React.FC = () => {
     return Object.values(groups).sort((a, b) => b.total - a.total);
   }, [filteredTransactions, portfolios, baseCurrency]);
 
+  const summary = useMemo(() => {
+    let income = 0;
+    let expense = 0;
+
+    filteredTransactions.forEach(tx => {
+      const p = portfolios.find(port => port.id === tx.portfolioId);
+      const currency = p?.currency || baseCurrency;
+      const amountInBase = currency === baseCurrency ? tx.amount : tx.amount * (rates[currency]?.[baseCurrency] || 1);
+      
+      if (tx.type === 'income') {
+        income += amountInBase;
+      } else {
+        expense += amountInBase;
+      }
+    });
+
+    return { income, expense, net: income - expense };
+  }, [filteredTransactions, portfolios, baseCurrency, rates]);
+
   const formatValue = (val: number, currencyCode: string = baseCurrency) => {
     const f = new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -310,12 +339,19 @@ const Transactions: React.FC = () => {
             <h1 className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white leading-tight">Activity</h1>
             <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-[0.25em] mt-1.5 opacity-60">Stream of Events</p>
           </div>
-          <button 
-            onClick={() => { setTxToEdit(null); setIsTxModalOpen(true); }}
-            className="w-14 h-14 rounded-[1.8rem] glossy-blue flex items-center justify-center text-white shadow-glow shadow-inner-light active:scale-90 transition-all tap-scale"
-          >
-            <Plus size={28} strokeWidth={2.5} />
-          </button>
+          <div className="flex items-center gap-3">
+            <GeminiInsightButton 
+              contextData={{ transactions: filteredTransactions, summary, insightsData, timeRange }} 
+              prompt="Analyze this user's transaction history and analytics. Provide a brief summary of their spending habits, highlight any notable trends or concerns, and suggest 1-2 actionable steps for better financial management." 
+              title="Activity Insights" 
+            />
+            <button 
+              onClick={() => { setTxToEdit(null); setIsTxModalOpen(true); }}
+              className="w-14 h-14 rounded-[1.8rem] glossy-blue flex items-center justify-center text-white shadow-glow shadow-inner-light active:scale-90 transition-all tap-scale shrink-0"
+            >
+              <Plus size={28} strokeWidth={2.5} />
+            </button>
+          </div>
         </div>
 
         {/* Custom Tab Switcher */}
@@ -478,6 +514,27 @@ const Transactions: React.FC = () => {
                 />
               </div>
             )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 px-2">
+              <div className="glass p-6 rounded-[2.2rem] shadow-premium flex flex-col gap-1 border border-white/40 dark:border-white/5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 opacity-60">Total Income</span>
+                <span className={`text-2xl font-black text-emerald-500 tabular-nums tracking-tighter ${settings.privacyMode ? 'blur-lg opacity-30' : ''}`}>
+                  {formatValue(summary.income, baseCurrency)}
+                </span>
+              </div>
+              <div className="glass p-6 rounded-[2.2rem] shadow-premium flex flex-col gap-1 border border-white/40 dark:border-white/5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 opacity-60">Total Expense</span>
+                <span className={`text-2xl font-black text-rose-500 tabular-nums tracking-tighter ${settings.privacyMode ? 'blur-lg opacity-30' : ''}`}>
+                  {formatValue(summary.expense, baseCurrency)}
+                </span>
+              </div>
+              <div className="glass p-6 rounded-[2.2rem] shadow-premium flex flex-col gap-1 border border-white/40 dark:border-white/5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 opacity-60">Net Flow</span>
+                <span className={`text-2xl font-black tabular-nums tracking-tighter ${summary.net >= 0 ? 'text-blue-600' : 'text-rose-600'} ${settings.privacyMode ? 'blur-lg opacity-30' : ''}`}>
+                  {formatValue(summary.net, baseCurrency)}
+                </span>
+              </div>
+            </div>
 
             <div className="grid gap-6 px-2 pb-10">
               {insightsData.length === 0 ? (

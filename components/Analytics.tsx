@@ -1,11 +1,22 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '../App';
 import { PortfolioType, Currency, Portfolio } from '../types';
-import { ChevronLeft, BarChart3, TrendingUp, TrendingDown, PieChart, Activity, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, BarChart3, TrendingUp, TrendingDown, PieChart, Activity, ShieldCheck, LineChart as LineChartIcon, Calendar } from 'lucide-react';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 const Analytics: React.FC = () => {
-  const { portfolios, baseCurrency, rates, settings, setActiveTab } = useApp();
+  const { portfolios, baseCurrency, rates, settings, setActiveTab, snapshots } = useApp();
+  const [selectedMetric, setSelectedMetric] = useState<'investments' | 'savings' | 'debt' | 'emiTotal'>('investments');
+
+  const chartData = useMemo(() => {
+    return snapshots
+      .sort((a, b) => a.date - b.date)
+      .map(s => ({
+        date: new Date(s.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        value: s[selectedMetric]
+      }));
+  }, [snapshots, selectedMetric]);
 
   const calculateRemainingEMI = (p: Portfolio) => {
     if (p.type !== PortfolioType.EMIS || !p.totalEmiValue || !p.monthlyEmiAmount || !p.emiStartDate) return p.value;
@@ -95,8 +106,70 @@ const Analytics: React.FC = () => {
       </div>
 
       <div className="flex flex-col gap-8">
+        {/* Growth Trends Section */}
+        <div className="space-y-6">
+           <div className="flex items-center justify-between px-2">
+              <SectionTitle title="Growth Trends" icon={<LineChartIcon size={14} className="text-blue-500" />} />
+              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl">
+                 <MetricButton active={selectedMetric === 'investments'} onClick={() => setSelectedMetric('investments')} label="Inv" />
+                 <MetricButton active={selectedMetric === 'savings'} onClick={() => setSelectedMetric('savings')} label="Sav" />
+                 <MetricButton active={selectedMetric === 'debt'} onClick={() => setSelectedMetric('debt')} label="Debt" />
+                 <MetricButton active={selectedMetric === 'emiTotal'} onClick={() => setSelectedMetric('emiTotal')} label="EMI" />
+              </div>
+           </div>
+
+           <div className="liquid-glass-refractive p-8 rounded-[2.5rem] shadow-premium h-[350px] relative">
+              {snapshots.length < 2 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center space-y-3 opacity-40">
+                  <Calendar size={32} />
+                  <p className="text-xs font-bold uppercase tracking-widest max-w-[200px]">Save at least 2 snapshots to see growth trends</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                    <XAxis 
+                      dataKey="date" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} 
+                      dy={10}
+                    />
+                    <YAxis 
+                      hide 
+                      domain={['auto', 'auto']}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#0f172a', 
+                        border: 'none', 
+                        borderRadius: '16px', 
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        color: '#fff',
+                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                      }}
+                      itemStyle={{ color: '#3b82f6' }}
+                      labelStyle={{ color: '#64748b', marginBottom: '4px' }}
+                      formatter={(value: number) => [`CAD ${value.toLocaleString()}`, 'Value']}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="value" 
+                      stroke="#3b82f6" 
+                      strokeWidth={4} 
+                      dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                      activeDot={{ r: 6, strokeWidth: 0 }}
+                      animationDuration={1500}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+           </div>
+        </div>
+
         {/* Large Pie Chart Hero */}
-        <div className="glass p-10 rounded-[3rem] shadow-premium flex flex-col items-center justify-center relative overflow-hidden border border-white/40 dark:border-white/5">
+        <div className="liquid-glass-refractive p-10 rounded-[3rem] shadow-premium flex flex-col items-center justify-center relative overflow-hidden">
            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[100px] -mr-32 -mt-32"></div>
            
            <div className="relative w-64 h-64 flex items-center justify-center mb-8">
@@ -193,6 +266,15 @@ const HealthRow: React.FC<{ label: string; value: string; sub: string; isPrivate
     </div>
     <span className={`text-lg font-black tracking-tighter tabular-nums ${isPrivate ? 'blur-md opacity-20' : ''}`}>{value}</span>
   </div>
+);
+
+const MetricButton: React.FC<{ active: boolean; onClick: () => void; label: string }> = ({ active, onClick, label }) => (
+  <button 
+    onClick={onClick}
+    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${active ? 'bg-white dark:bg-slate-700 text-blue-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+  >
+    {label}
+  </button>
 );
 
 export default Analytics;

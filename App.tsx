@@ -16,9 +16,10 @@ import {
   AlertTriangle,
   Key,
   Terminal,
-  BarChart3
+  BarChart3,
+  Diamond
 } from 'lucide-react';
-import { Portfolio, Currency, UserProfile, AppSettings, ExchangeRates, Transaction, Goal, PortfolioType, LogEntry, Trade } from './types';
+import { Portfolio, Currency, UserProfile, AppSettings, ExchangeRates, Transaction, Goal, PortfolioType, LogEntry, Trade, Snapshot } from './types';
 import { INITIAL_RATES } from './constants';
 import { db } from './db';
 import Dashboard from './components/Dashboard';
@@ -29,6 +30,7 @@ import Transactions from './components/Transactions';
 import LatestNews from './components/LatestNews';
 import Trading from './components/Trading';
 import Analytics from './components/Analytics';
+import HistoryTab from './components/HistoryTab';
 import AuthGateway from './components/AuthGateway';
 import UnlockScreen from './components/UnlockScreen';
 import PortfolioForm from './components/PortfolioForm';
@@ -83,9 +85,11 @@ interface AppContextType {
   logs: LogEntry[];
   addLog: (msg: string, type?: 'error' | 'info', context?: string) => void;
   clearLogs: () => void;
+  snapshots: Snapshot[];
+  setSnapshots: React.Dispatch<React.SetStateAction<Snapshot[]>>;
 }
 
-type TabType = 'dashboard' | 'transactions' | 'portfolios' | 'settings' | 'insights' | 'news' | 'trading' | 'analytics';
+type TabType = 'dashboard' | 'transactions' | 'portfolios' | 'settings' | 'insights' | 'news' | 'trading' | 'analytics' | 'history';
 
 const AppContext = createContext<AppContextType | null>(null);
 
@@ -135,6 +139,7 @@ const App: React.FC = () => {
   const [newsCache, setNewsCache] = useState<any[]>([]);
   const [vantageScore, setVantageScore] = useState<number | null>(null);
   const [vantageAdvice, setVantageAdvice] = useState<string>('');
+  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
 
   const backgroundTimeRef = useRef<number | null>(null);
   const lockGracePeriodRef = useRef<number>(3 * 60 * 1000); 
@@ -159,17 +164,19 @@ const App: React.FC = () => {
   };
 
   const reloadData = useCallback(async () => {
-    const [savedPortfolios, savedGoals, savedProfile, savedSettings, savedTrades] = await Promise.all([
+    const [savedPortfolios, savedGoals, savedProfile, savedSettings, savedTrades, savedSnapshots] = await Promise.all([
       db.getAllPortfolios(),
       db.getAllGoals(),
       db.getProfile(),
       db.getSettings(),
-      db.getAllTrades()
+      db.getAllTrades(),
+      db.getAllSnapshots()
     ]);
     
     if (savedPortfolios) setPortfolios(savedPortfolios);
     if (savedGoals) setGoals(savedGoals);
     if (savedTrades) setTrades(savedTrades);
+    if (savedSnapshots) setSnapshots(savedSnapshots);
     if (savedProfile) {
       setProfile(savedProfile);
       setIsAuth(true);
@@ -234,7 +241,7 @@ const App: React.FC = () => {
       const response = await callAiWithRetry(() => 
         ai.models.generateContent({
           model: settings.selectedModel || 'gemini-3-flash-preview',
-          contents: `Analyze financial health. Summary: ${JSON.stringify(summaryData)}. Base Unit: ${baseCurrency}. Return JSON: { "score": 0-100, "advice": "One clear paragraph." }`,
+          contents: `Analyze financial health. Summary: ${JSON.stringify(summaryData)}. Base Unit: ${baseCurrency}. Return JSON: { "score": 0-100, "advice": "One clear paragraph, maximum 2-3 lines." }`,
           config: { responseMimeType: "application/json" }
         })
       );
@@ -519,7 +526,9 @@ const App: React.FC = () => {
     ensureApiKey,
     logs,
     addLog,
-    clearLogs
+    clearLogs,
+    snapshots,
+    setSnapshots
   };
 
   return (
@@ -605,7 +614,16 @@ const App: React.FC = () => {
             )}
             <TabButton active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} icon={<History size={20} />} label="Activity" />
             {settings.aiEnabled && (
-              <TabButton active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon={<Sparkles size={20} />} label="AI Hub" />
+              <TabButton 
+                active={activeTab === 'insights'} 
+                onClick={() => setActiveTab('insights')} 
+                icon={
+                  <div className="animate-[spin_4s_linear_infinite] [transform-style:preserve-3d]">
+                    <Diamond size={20} />
+                  </div>
+                } 
+                label="AI Hub" 
+              />
             )}
             <TabButton active={activeTab === 'news'} onClick={() => setActiveTab('news')} icon={<Newspaper size={20} />} label="News" />
             <div className="hidden md:block w-full">
@@ -628,6 +646,7 @@ const App: React.FC = () => {
             {activeTab === 'news' && <LatestNews />}
             {activeTab === 'settings' && <Settings />}
             {activeTab === 'analytics' && <Analytics />}
+            {activeTab === 'history' && <HistoryTab />}
           </div>
         </main>
 

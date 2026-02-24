@@ -3,7 +3,9 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useApp } from '../App';
 import { Currency, PortfolioType, Portfolio, Transaction } from '../types';
 import { db } from '../db';
-import { Plus, Receipt, TrendingUp, ArrowUpRight, RefreshCcw, Loader2, X, ChevronRight, Brain, Landmark, BarChart3, ArrowDownLeft, Zap, Activity, Sparkles } from 'lucide-react';
+import { Plus, Receipt, TrendingUp, ArrowUpRight, RefreshCcw, Loader2, X, ChevronRight, Brain, Landmark, BarChart3, ArrowDownLeft, Zap, Activity, Sparkles, History, Save, Info } from 'lucide-react';
+import { Snapshot } from '../types';
+import { GeminiInsightButton } from './GeminiInsightButton';
 
 const Dashboard: React.FC = () => {
   const { settings } = useApp();
@@ -11,8 +13,42 @@ const Dashboard: React.FC = () => {
 };
 
 const DashboardV2: React.FC = () => {
-  const { portfolios, baseCurrency, setBaseCurrency, rates, settings, setIsPortfolioModalOpen, setIsTxModalOpen, setActiveTab, setActivePortfolioSection } = useApp();
+  const { portfolios, baseCurrency, setBaseCurrency, rates, settings, setIsPortfolioModalOpen, setIsTxModalOpen, setActiveTab, setActivePortfolioSection, setSnapshots } = useApp();
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+  const [showInfo, setShowInfo] = useState(false);
+
+  const handleSaveSnapshot = async () => {
+    let savingsCAD = 0, investmentsCAD = 0, debtCAD = 0, emiTotalCAD = 0;
+    portfolios.forEach(p => {
+      const liveValue = p.type === PortfolioType.EMIS ? calculateRemainingEMI(p) : p.value;
+      const valInCAD = p.currency === Currency.CAD ? liveValue : liveValue * (rates[p.currency]?.[Currency.CAD] || 1);
+      switch(p.type) {
+        case PortfolioType.SAVINGS: savingsCAD += valInCAD; break;
+        case PortfolioType.INVESTMENTS: investmentsCAD += valInCAD; break;
+        case PortfolioType.DEBTS: debtCAD += valInCAD; break;
+        case PortfolioType.EMIS: emiTotalCAD += valInCAD; break;
+      }
+    });
+
+    const today = new Date();
+    const id = today.toISOString().split('T')[0];
+    
+    const snapshot: Snapshot = {
+      id,
+      date: today.getTime(),
+      savings: savingsCAD,
+      investments: investmentsCAD,
+      debt: debtCAD,
+      emiTotal: emiTotalCAD,
+      updatedAt: Date.now()
+    };
+
+    await db.saveSnapshot(snapshot);
+    const all = await db.getAllSnapshots();
+    setSnapshots(all);
+    if (navigator.vibrate) navigator.vibrate(20);
+    alert(`Snapshot saved for ${id}. Values recorded in CAD.`);
+  };
 
   useEffect(() => {
     const fetchRecent = async () => {
@@ -81,17 +117,24 @@ const DashboardV2: React.FC = () => {
       <div className="flex items-center justify-between px-1">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Overview</h1>
         
-        <div className="flex items-center gap-1.5 glass px-4 py-2 rounded-xl border-white/40 shadow-sm tap-scale cursor-pointer">
-          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Unit</span>
-          <select 
-            value={baseCurrency} 
-            onChange={(e) => setBaseCurrency(e.target.value as Currency)} 
-            className="appearance-none bg-transparent border-none font-black text-slate-900 dark:text-white text-xs focus:outline-none cursor-pointer"
-          >
-            <option value={Currency.CAD}>CAD</option>
-            <option value={Currency.INR}>INR</option>
-            <option value={Currency.USD}>USD</option>
-          </select>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 glass px-4 py-2 rounded-xl border-white/40 shadow-sm tap-scale cursor-pointer">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Unit</span>
+            <select 
+              value={baseCurrency} 
+              onChange={(e) => setBaseCurrency(e.target.value as Currency)} 
+              className="appearance-none bg-transparent border-none font-black text-slate-900 dark:text-white text-xs focus:outline-none cursor-pointer"
+            >
+              <option value={Currency.CAD}>CAD</option>
+              <option value={Currency.INR}>INR</option>
+              <option value={Currency.USD}>USD</option>
+            </select>
+          </div>
+          <GeminiInsightButton 
+            contextData={{ portfolios, recentTransactions, totals }} 
+            prompt="Analyze this financial dashboard data. Provide a brief summary of the user's financial health, highlight any notable trends or concerns, and suggest 1-2 actionable steps." 
+            title="Dashboard Insights" 
+          />
         </div>
       </div>
 
@@ -135,14 +178,62 @@ const DashboardV2: React.FC = () => {
 
       {/* Portfolio Grid Card V2 */}
       <div className="space-y-4 px-1">
-         <h3 className="text-lg font-bold text-slate-900 dark:text-white">Portfolio</h3>
-         <div className="bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 rounded-[2.5rem] p-8 shadow-premium grid grid-cols-2 gap-y-8">
-            <MiniStatV2 label="Total Investments" value={totals.investments} currency={baseCurrency} isPrivate={settings.privacyMode} onClick={() => navigateToSection(PortfolioType.INVESTMENTS)} />
-            <MiniStatV2 label="Total Savings" value={totals.savings} currency={baseCurrency} isPrivate={settings.privacyMode} onClick={() => navigateToSection(PortfolioType.SAVINGS)} />
-            <MiniStatV2 label="Total Debt" value={totals.debt} currency={baseCurrency} color="text-rose-500" isPrivate={settings.privacyMode} onClick={() => navigateToSection(PortfolioType.DEBTS)} />
-            <MiniStatV2 label="Total EMIs" value={totals.emiTotal} currency={baseCurrency} color="text-amber-500" isPrivate={settings.privacyMode} onClick={() => navigateToSection(PortfolioType.EMIS)} />
+         <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Portfolio</h3>
+            <button onClick={() => setShowInfo(true)} className="p-2 text-slate-400 hover:text-blue-500 transition-colors">
+              <Info size={18} />
+            </button>
+         </div>
+         <div className="bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 rounded-[2.5rem] p-8 shadow-premium">
+            <div className="grid grid-cols-2 gap-y-8 mb-8">
+              <MiniStatV2 label="Total Investments" value={totals.investments} currency={baseCurrency} isPrivate={settings.privacyMode} onClick={() => navigateToSection(PortfolioType.INVESTMENTS)} />
+              <MiniStatV2 label="Total Savings" value={totals.savings} currency={baseCurrency} isPrivate={settings.privacyMode} onClick={() => navigateToSection(PortfolioType.SAVINGS)} />
+              <MiniStatV2 label="Total Debt" value={totals.debt} currency={baseCurrency} color="text-rose-500" isPrivate={settings.privacyMode} onClick={() => navigateToSection(PortfolioType.DEBTS)} />
+              <MiniStatV2 label="Total EMIs" value={totals.emiTotal} currency={baseCurrency} color="text-amber-500" isPrivate={settings.privacyMode} onClick={() => navigateToSection(PortfolioType.EMIS)} />
+            </div>
+            
+            <div className="flex items-center gap-3 pt-6 border-t border-slate-100 dark:border-white/5">
+              <button 
+                onClick={handleSaveSnapshot}
+                className="flex-1 flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-blue-500 hover:text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all group"
+              >
+                <Save size={14} className="text-blue-500 group-hover:text-white" />
+                <span>Save to History</span>
+              </button>
+              <button 
+                onClick={() => setActiveTab('history')}
+                className="flex-1 flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
+              >
+                <History size={14} className="text-slate-500" />
+                <span>View History</span>
+              </button>
+            </div>
          </div>
       </div>
+
+      {showInfo && (
+        <div className="fixed inset-0 z-[120] bg-slate-950/80 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300 border border-white/5">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                <Info size={24} />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">How it works</h3>
+            </div>
+            <div className="space-y-4 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              <p><strong className="text-slate-900 dark:text-white">Save to History:</strong> Captures a snapshot of your current portfolio totals (Investments, Savings, Debt, EMIs) in CAD.</p>
+              <p><strong className="text-slate-900 dark:text-white">Daily Snapshots:</strong> If you save multiple times a day, only the latest values for that day are kept.</p>
+              <p><strong className="text-slate-900 dark:text-white">Analytics:</strong> These snapshots are used to generate growth charts in the Analytics tab, helping you track your progress over time.</p>
+            </div>
+            <button 
+              onClick={() => setShowInfo(false)}
+              className="w-full mt-8 bg-blue-600 text-white font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest shadow-lg shadow-blue-500/20"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Recent Transactions V2 */}
       <div className="space-y-4 px-1 pb-10">
@@ -306,13 +397,20 @@ const DashboardV1: React.FC = () => {
     <div className="w-full space-y-6 flex flex-col items-stretch pb-10">
       <div className="flex items-center justify-between px-1">
         <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Overview</h1>
-        <div className="flex items-center gap-1.5 glass px-4 py-2 rounded-xl border-white/40 shadow-sm tap-scale cursor-pointer">
-          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Unit</span>
-          <select value={baseCurrency} onChange={(e) => setBaseCurrency(e.target.value as Currency)} className="appearance-none bg-transparent border-none font-black text-slate-900 dark:text-white text-xs focus:outline-none cursor-pointer">
-            <option value={Currency.CAD}>CAD</option>
-            <option value={Currency.INR}>INR</option>
-            <option value={Currency.USD}>USD</option>
-          </select>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 glass px-4 py-2 rounded-xl border-white/40 shadow-sm tap-scale cursor-pointer">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Unit</span>
+            <select value={baseCurrency} onChange={(e) => setBaseCurrency(e.target.value as Currency)} className="appearance-none bg-transparent border-none font-black text-slate-900 dark:text-white text-xs focus:outline-none cursor-pointer">
+              <option value={Currency.CAD}>CAD</option>
+              <option value={Currency.INR}>INR</option>
+              <option value={Currency.USD}>USD</option>
+            </select>
+          </div>
+          <GeminiInsightButton 
+            contextData={{ portfolios, totals, vantageScore, vantageAdvice }} 
+            prompt="Analyze this financial dashboard data. Provide a brief summary of the user's financial health, highlight any notable trends or concerns, and suggest 1-2 actionable steps." 
+            title="Dashboard Insights" 
+          />
         </div>
       </div>
 

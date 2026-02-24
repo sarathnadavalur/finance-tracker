@@ -116,3 +116,13 @@ export interface ExchangeRates {
   [Currency.INR]: { [key in Currency]: number };
   [Currency.USD]: { [key in Currency]: number };
 }
+
+export interface Snapshot {
+  id: string; // YYYY-MM-DD
+  date: number; // timestamp
+  savings: number; // CAD
+  investments: number; // CAD
+  debt: number; // CAD
+  emiTotal: number; // CAD
+  updatedAt: number;
+}

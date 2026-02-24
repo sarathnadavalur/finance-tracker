@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../App';
 import { GoogleGenAI, Type, FunctionDeclaration } from '@google/genai';
-import { Sparkles, Send, Loader2, BrainCircuit, TrendingUp, ShieldCheck } from 'lucide-react';
+import { Sparkles, Send, Loader2, BrainCircuit, TrendingUp, ShieldCheck, Diamond } from 'lucide-react';
 import { PortfolioType, Currency } from '../types';
 
 interface Message {
@@ -87,7 +87,7 @@ const Insights: React.FC = () => {
         You are a world-class personal finance advisor. 
         You have tools to manage portfolios. Use them whenever the user asks to add, create, or delete a portfolio.
         When you create a portfolio, confirm the details to the user.
-        Formatting: Use Markdown for bold text (e.g. **text**). Use bullet points (e.g. * Item) for lists. Keep responses brief but high-impact for mobile viewing.
+        Formatting: Use Markdown for bold text (e.g. **text**). Use bullet points (e.g. * Item) for lists. CRITICAL: Keep responses extremely concise, maximum 5-6 lines.
       `;
 
       const response = await ai.models.generateContent({
@@ -168,8 +168,10 @@ const Insights: React.FC = () => {
           <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-slate-900 dark:text-white leading-tight">AI Insights</h1>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mt-0.5">Vantage Intelligence Engine</p>
         </div>
-        <div className="w-10 h-10 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600 animate-pulse">
-          <Sparkles size={20} />
+        <div className="w-10 h-10 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600">
+          <div className="animate-[spin_4s_linear_infinite] [transform-style:preserve-3d]">
+            <Diamond size={20} />
+          </div>
         </div>
       </div>
 

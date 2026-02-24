@@ -71,8 +71,8 @@ const Ledger: React.FC<LedgerProps> = ({ portfolio, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-slate-50 dark:bg-[#020617] flex flex-col animate-in slide-in-from-right duration-300">
-      <header className="px-6 py-6 border-b border-slate-200 dark:border-white/5 flex items-center justify-between bg-white dark:bg-slate-900/50 backdrop-blur-md sticky top-0 z-10 shrink-0">
+    <div className="fixed inset-0 z-[100] bg-slate-50 dark:bg-[#020617] flex flex-col animate-in slide-in-from-right duration-300 mesh-bg-ios">
+      <header className="px-6 py-6 liquid-glass flex items-center justify-between sticky top-0 z-10 shrink-0">
         <div className="flex items-center gap-4">
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
             <ChevronLeft size={24} className="text-slate-900 dark:text-white" />
@@ -108,7 +108,7 @@ const Ledger: React.FC<LedgerProps> = ({ portfolio, onClose }) => {
                   onMouseLeave={handleEndPress}
                   onTouchStart={() => handleStartPress(tx.id)}
                   onTouchEnd={handleEndPress}
-                  className={`relative bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-4 rounded-[1.8rem] flex items-center justify-between group shadow-sm transition-all duration-300 select-none overflow-hidden
+                  className={`relative liquid-glass p-4 rounded-[1.8rem] flex items-center justify-between group shadow-sm transition-all duration-300 select-none overflow-hidden
                     ${isPressing ? 'scale-[0.98] brightness-90' : 'animate-in fade-in slide-in-from-bottom-2 duration-300'}
                   `}
                 >
