@@ -127,7 +127,8 @@ const App: React.FC = () => {
     tradingEnabled: false,
     aiEnabled: true,
     biometricEnabled: true,
-    dashboardV2Enabled: false
+    dashboardV2Enabled: false,
+    glossyIndex: 50
   });
   const [rates, setRates] = useState<ExchangeRates>(INITIAL_RATES);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -533,7 +534,10 @@ const App: React.FC = () => {
 
   return (
     <AppContext.Provider value={contextValue}>
-      <div className="h-full min-h-[100dvh] flex flex-col md:flex-row max-w-7xl mx-auto bg-slate-50 dark:bg-[#020617] transition-all duration-500 antialiased overflow-hidden w-full relative">
+      <div 
+        className="h-full min-h-[100dvh] flex flex-col md:flex-row max-w-7xl mx-auto bg-slate-50 dark:bg-[#020617] transition-all duration-500 antialiased overflow-hidden w-full relative"
+        style={{ '--glossy-index': settings.glossyIndex } as React.CSSProperties}
+      >
         {isLocked && <UnlockScreen profile={profile} onUnlock={() => setIsLocked(false)} />}
 
         <header className="md:hidden pt-4 px-5 pb-3 flex justify-between items-center shrink-0 glass sticky top-0 z-40 w-full border-b border-white/20 dark:border-white/5">

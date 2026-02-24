@@ -109,6 +109,7 @@ export interface AppSettings {
   aiEnabled: boolean;
   biometricEnabled: boolean;
   dashboardV2Enabled: boolean;
+  glossyIndex: number;
 }
 
 export interface ExchangeRates {

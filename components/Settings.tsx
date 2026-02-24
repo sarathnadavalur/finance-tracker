@@ -196,6 +196,30 @@ const Settings: React.FC = () => {
           <SettingsRow icon={<Moon size={16} className="text-blue-500" />} label="Dark Mode" action={<button onClick={() => setSettings({...settings, darkMode: !settings.darkMode})} className={`w-10 h-6 rounded-full relative transition-colors ${settings.darkMode ? 'bg-blue-600' : 'bg-slate-300'}`}><div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.darkMode ? 'right-1' : 'left-1'}`}></div></button>} />
           <SettingsRow icon={<Type size={16} className="text-purple-500" />} label="Font Size" action={<div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">{(['S', 'M', 'L', 'XL'] as FontSizeLabel[]).map(size => (<button key={size} onClick={() => setSettings({...settings, fontSize: size})} className={`px-3 py-1.5 rounded-lg text-[10px] font-black ${settings.fontSize === size ? 'bg-white dark:bg-slate-700 text-blue-600' : 'text-slate-400'}`}>{size}</button>))}</div>} />
           <SettingsRow icon={<Maximize size={16} className="text-blue-500" />} label="Scale Factor" action={<div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">{[0.7, 0.85, 1, 1.15, 1.3].map(scale => (<button key={scale} onClick={() => setSettings({...settings, scaleFactor: scale})} className={`px-2 py-1.5 rounded-lg text-[9px] font-black ${settings.scaleFactor === scale ? 'bg-white dark:bg-slate-700 text-blue-600' : 'text-slate-400'}`}>{scale}x</button>))}</div>} />
+          
+          <div className="p-5 border-b border-slate-100 dark:border-white/5 last:border-0">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">
+                  <Sparkles size={16} className="text-purple-500" />
+                </div>
+                <span className="font-bold text-sm text-slate-700 dark:text-slate-200">Glossy Index</span>
+              </div>
+              <span className="text-[10px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">{settings.glossyIndex || 50}%</span>
+            </div>
+            <input 
+              type="range" 
+              min="0" 
+              max="100" 
+              value={settings.glossyIndex || 50} 
+              onChange={(e) => setSettings({...settings, glossyIndex: parseInt(e.target.value)})}
+              className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
+            />
+            <div className="flex justify-between mt-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+              <span>Matte</span>
+              <span>Glass</span>
+            </div>
+          </div>
         </SettingsGroup>
 
         <SettingsGroup title="Beta Lab">
